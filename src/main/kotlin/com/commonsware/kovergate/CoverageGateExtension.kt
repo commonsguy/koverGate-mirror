@@ -18,4 +18,8 @@ abstract class CoverageGateExtension @Inject constructor(objects: ObjectFactory)
         objects.property(Int::class.java).convention(100)
     val disabledMetrics: SetProperty<CoverageMetric> =
         objects.setProperty(CoverageMetric::class.java).convention(emptySet())
+
+    /** Whether to pretty-print the JSON gap report output. Defaults to `false`. */
+    val prettyPrintJson: Property<Boolean> =
+        objects.property(Boolean::class.java).convention(false)
 }

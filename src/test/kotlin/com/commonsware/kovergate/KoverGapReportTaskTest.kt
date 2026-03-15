@@ -1,5 +1,7 @@
 package com.commonsware.kovergate
 
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
@@ -144,36 +146,41 @@ class KoverGapReportTaskTest {
 
     // --- buildJsonOutput ---
 
+    private fun parseJson(json: String): GapReport = Json.decodeFromString(json)
+
     @Test
-    fun `JSON output contains module path`() {
-        val json = buildJsonOutput(":my-module", true, emptyMap(), emptyList())
-        assertTrue(json.contains("\"module\": \":my-module\""))
+    fun `JSON output contains correct module path`() {
+        val report = parseJson(buildJsonOutput(":my-module", true, emptyMap(), emptyList(), false))
+        assertEquals(":my-module", report.module)
     }
 
     @Test
     fun `JSON passed field is true when all pass`() {
-        val json = buildJsonOutput(":m", true, emptyMap(), emptyList())
-        assertTrue(json.contains("\"passed\": true"))
+        val report = parseJson(buildJsonOutput(":m", true, emptyMap(), emptyList(), false))
+        assertTrue(report.passed)
     }
 
     @Test
     fun `JSON passed field is false when any fail`() {
-        val json = buildJsonOutput(":m", false, emptyMap(), emptyList())
-        assertTrue(json.contains("\"passed\": false"))
+        val report = parseJson(buildJsonOutput(":m", false, emptyMap(), emptyList(), false))
+        assertFalse(report.passed)
     }
 
     @Test
     fun `JSON metrics block contains correct fields`() {
         val results = mapOf(
-            CoverageMetric.LINE to MetricResult(covered = 161, total = 163, percent = 98.8, threshold = 100, passed = false)
+            CoverageMetric.LINE to MetricResult(
+                covered = 161, total = 163, percent = 98.8, threshold = 100, passed = false
+            )
         )
-        val json = buildJsonOutput(":m", false, results, emptyList())
-        assertTrue(json.contains("\"LINE\""))
-        assertTrue(json.contains("\"covered\": 161"))
-        assertTrue(json.contains("\"total\": 163"))
-        assertTrue(json.contains("\"percent\": 98.8"))
-        assertTrue(json.contains("\"threshold\": 100"))
-        assertTrue(json.contains("\"passed\": false"))
+        val report = parseJson(buildJsonOutput(":m", false, results, emptyList(), false))
+        val metric = report.metrics["LINE"]
+        assertNotNull(metric)
+        assertEquals(161, metric!!.covered)
+        assertEquals(163, metric.total)
+        assertEquals(98.8, metric.percent)
+        assertEquals(100, metric.threshold)
+        assertFalse(metric.passed)
     }
 
     @Test
@@ -181,28 +188,60 @@ class KoverGapReportTaskTest {
         val files = listOf(
             FileCoverage("Foo.kt", "com/example", listOf(45, 47), listOf(45))
         )
-        val json = buildJsonOutput(":m", false, emptyMap(), files)
-        assertTrue(json.contains("\"name\": \"Foo.kt\""))
-        assertTrue(json.contains("\"package\": \"com/example\""))
-        assertTrue(json.contains("\"uncoveredLines\": [45, 47]"))
-        assertTrue(json.contains("\"missedBranchLines\": [45]"))
+        val report = parseJson(buildJsonOutput(":m", false, emptyMap(), files, false))
+        assertEquals(1, report.files.size)
+        val file = report.files[0]
+        assertEquals("Foo.kt", file.name)
+        assertEquals("com/example", file.packageName)
+        assertEquals(listOf(45, 47), file.uncoveredLines)
+        assertEquals(listOf(45), file.missedBranchLines)
     }
 
     @Test
     fun `JSON files array is empty when no gaps`() {
-        val json = buildJsonOutput(":m", true, emptyMap(), emptyList())
-        assertTrue(json.contains("\"files\": []"))
+        val report = parseJson(buildJsonOutput(":m", true, emptyMap(), emptyList(), false))
+        assertTrue(report.files.isEmpty())
     }
 
     @Test
     fun `disabled metric is absent from JSON metrics block`() {
-        // Simulate plugin excluding BRANCH from metricResults before calling buildJsonOutput
         val results = mapOf(
-            CoverageMetric.LINE to MetricResult(covered = 100, total = 100, percent = 100.0, threshold = 100, passed = true)
-            // BRANCH absent — as it would be if disabled
+            CoverageMetric.LINE to MetricResult(
+                covered = 100, total = 100, percent = 100.0, threshold = 100, passed = true
+            )
+            // BRANCH absent — simulates it being disabled
         )
-        val json = buildJsonOutput(":m", true, results, emptyList())
-        assertTrue(json.contains("\"LINE\""), "Enabled metric must appear in JSON")
-        assertFalse(json.contains("\"BRANCH\""), "Disabled metric must not appear in JSON")
+        val report = parseJson(buildJsonOutput(":m", true, results, emptyList(), false))
+        assertNotNull(report.metrics["LINE"], "Enabled metric must appear in JSON")
+        assertNull(report.metrics["BRANCH"], "Disabled metric must not appear in JSON")
+    }
+
+    @Test
+    fun `prettyPrint=true produces multi-line indented output`() {
+        val results = mapOf(
+            CoverageMetric.LINE to MetricResult(
+                covered = 163, total = 163, percent = 100.0, threshold = 100, passed = true
+            )
+        )
+        val json = buildJsonOutput(":m", true, results, emptyList(), prettyPrint = true)
+        assertTrue(json.contains("\n"), "Pretty output must contain newlines")
+        assertTrue(json.contains("    "), "Pretty output must contain 4-space indentation")
+        // Data must be preserved
+        val report = parseJson(json)
+        assertEquals(":m", report.module)
+        assertTrue(report.passed)
+    }
+
+    @Test
+    fun `prettyPrint=false produces compact single-line output`() {
+        val results = mapOf(
+            CoverageMetric.LINE to MetricResult(
+                covered = 163, total = 163, percent = 100.0, threshold = 100, passed = true
+            )
+        )
+        val json = buildJsonOutput(":m", true, results, emptyList(), prettyPrint = false)
+        assertFalse(json.contains("\n"), "Compact output must not contain newlines")
+        val report = parseJson(json)
+        assertEquals(":m", report.module)
     }
 }

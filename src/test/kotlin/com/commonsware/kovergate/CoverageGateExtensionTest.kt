@@ -35,4 +35,9 @@ class CoverageGateExtensionTest {
         ext.disabledMetrics.set(setOf(CoverageMetric.INSTRUCTION, CoverageMetric.METHOD))
         assertEquals(setOf(CoverageMetric.INSTRUCTION, CoverageMetric.METHOD), ext.disabledMetrics.get())
     }
+
+    @Test
+    fun `prettyPrintJson defaults to false`() {
+        assertFalse(ext.prettyPrintJson.get())
+    }
 }

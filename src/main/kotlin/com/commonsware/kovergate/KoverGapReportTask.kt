@@ -1,13 +1,15 @@
 package com.commonsware.kovergate
 
+import java.math.BigDecimal
+import java.math.RoundingMode
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.api.tasks.*
-import java.math.BigDecimal
-import java.math.RoundingMode
 
 // ─── Pure data + functions (unit-testable without Gradle) ──────────────────
 
@@ -73,35 +75,21 @@ internal fun buildJsonOutput(
     projectPath: String,
     passed: Boolean,
     metricResults: Map<CoverageMetric, MetricResult>,
-    filesWithGaps: List<FileCoverage>
-): String = buildString {
-    appendLine("{")
-    appendLine("  \"module\": \"$projectPath\",")
-    appendLine("  \"passed\": $passed,")
-    appendLine("  \"metrics\": {")
-    val entries = metricResults.entries.toList()
-    entries.forEachIndexed { i, (metric, r) ->
-        val comma = if (i < entries.lastIndex) "," else ""
-        appendLine("    \"${metric.name}\": { \"covered\": ${r.covered}, \"total\": ${r.total}, " +
-            "\"percent\": ${r.percent}, \"threshold\": ${r.threshold}, \"passed\": ${r.passed} }$comma")
-    }
-    appendLine("  },")
-    if (filesWithGaps.isEmpty()) {
-        appendLine("  \"files\": []")
-    } else {
-        appendLine("  \"files\": [")
-        filesWithGaps.forEachIndexed { i, file ->
-            val comma = if (i < filesWithGaps.lastIndex) "," else ""
-            appendLine("    {")
-            appendLine("      \"name\": \"${file.name}\",")
-            appendLine("      \"package\": \"${file.packageName}\",")
-            appendLine("      \"uncoveredLines\": [${file.uncoveredLines.joinToString(", ")}],")
-            appendLine("      \"missedBranchLines\": [${file.missedBranchLines.joinToString(", ")}]")
-            appendLine("    }$comma")
+    filesWithGaps: List<FileCoverage>,
+    prettyPrint: Boolean = false
+): String {
+    val json = Json { this.prettyPrint = prettyPrint }
+    val report = GapReport(
+        module = projectPath,
+        passed = passed,
+        metrics = metricResults.entries.associate { (metric, r) ->
+            metric.name to MetricJson(r.covered, r.total, r.percent, r.threshold, r.passed)
+        },
+        files = filesWithGaps.map {
+            FileGap(it.name, it.packageName, it.uncoveredLines, it.missedBranchLines)
         }
-        appendLine("  ]")
-    }
-    append("}")
+    )
+    return json.encodeToString<GapReport>(report)
 }
 
 // ─── The Gradle task ────────────────────────────────────────────────────────
@@ -130,6 +118,15 @@ abstract class KoverGapReportTask : DefaultTask() {
 
     @get:Input
     abstract val disabledMetrics: SetProperty<CoverageMetric>
+
+    /**
+     * Whether to pretty-print the JSON gap report output.
+     *
+     * When `true`, the JSON is formatted with indentation for human readability.
+     * When `false` (the default), compact JSON is emitted.
+     */
+    @get:Input
+    abstract val prettyPrintJson: Property<Boolean>
 
     @get:OutputFile
     abstract val jsonReportFile: RegularFileProperty
@@ -178,7 +175,10 @@ abstract class KoverGapReportTask : DefaultTask() {
         // Write JSON (always, even on pass)
         val jsonFile = jsonReportFile.get().asFile
         jsonFile.parentFile.mkdirs()
-        jsonFile.writeText(buildJsonOutput(projectPath.get(), overallPassed, metricResults, filesWithGaps))
+        jsonFile.writeText(
+            buildJsonOutput(projectPath.get(), overallPassed, metricResults, filesWithGaps,
+                            prettyPrintJson.get())
+        )
 
         // Print console summary
         val summary = buildConsoleOutput(projectPath.get(), metricResults, filesWithGaps, overallPassed)

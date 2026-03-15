@@ -1,5 +1,7 @@
 package com.commonsware.kovergate
 
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.*
@@ -95,8 +97,9 @@ class CoverageGateFunctionalTest {
         assertTrue(result.output.contains("Coverage gate PASSED"))
 
         val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
-        assertTrue(json.contains("\"passed\": true"))
-        assertTrue(json.contains("\"files\": []"))
+        val report = Json.decodeFromString<GapReport>(json)
+        assertTrue(report.passed)
+        assertTrue(report.files.isEmpty())
     }
 
     @Test
@@ -113,9 +116,11 @@ class CoverageGateFunctionalTest {
         val jsonFile = File(projectDir, "build/reports/kover/gap-report.json")
         assertTrue(jsonFile.exists(), "JSON report should be written even on failure")
         val json = jsonFile.readText()
-        assertTrue(json.contains("\"passed\": false"))
+        val report = Json.decodeFromString<GapReport>(json)
+        assertFalse(report.passed)
         // Calculator.kt should appear in files with gaps
-        assertTrue(json.contains("\"name\": \"Calculator.kt\""))
+        assertTrue(report.files.any { it.name == "Calculator.kt" },
+            "Expected Calculator.kt in gap files but got: ${report.files.map { it.name }}")
     }
 
     @Test
@@ -156,7 +161,8 @@ class CoverageGateFunctionalTest {
         runner("koverGapReport").build()
 
         val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
-        assertFalse(json.contains("\"BRANCH\""), "Disabled metrics must not appear in JSON")
+        val report = Json.decodeFromString<GapReport>(json)
+        assertNull(report.metrics["BRANCH"], "Disabled metrics must not appear in JSON")
     }
 
     @Test
@@ -237,5 +243,28 @@ class CoverageGateFunctionalTest {
             result.output.contains("KoverGate requires the Kover plugin"),
             "Error message should mention the missing Kover plugin. Got: ${result.output}"
         )
+    }
+
+    @Test
+    fun `prettyPrintJson=true produces indented JSON output`() {
+        writeSettingsFile()
+        writeBuildFile("""
+            koverGate {
+                prettyPrintJson.set(true)
+            }
+        """.trimIndent())
+        writeSourceFile(covered = true)
+
+        val result = runner("koverGapReport").build()
+
+        assertEquals(TaskOutcome.SUCCESS, result.task(":koverGapReport")?.outcome)
+
+        val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
+        // Pretty output contains embedded newlines (not just a trailing newline)
+        assertTrue(json.indexOf('\n') < json.trimEnd().lastIndex,
+            "Pretty JSON should contain embedded newlines, but got: $json")
+        // Data must still be correct
+        val report = Json.decodeFromString<GapReport>(json)
+        assertTrue(report.passed)
     }
 }

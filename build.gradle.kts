@@ -1,6 +1,7 @@
 plugins {
     `java-gradle-plugin`
     `kotlin-dsl`
+    kotlin("plugin.serialization")
     `maven-publish`
 }
 
@@ -22,12 +23,6 @@ repositories {
     mavenCentral()
 }
 
-dependencies {
-    testImplementation(libs.junit.jupiter)
-    testRuntimeOnly(libs.junit.platform.launcher)
-    testImplementation("org.jetbrains.kotlinx:kover-gradle-plugin:0.9.1")
-}
-
 // Functional test source set
 val functionalTestSourceSet = sourceSets.create("functionalTest") {
     compileClasspath += sourceSets.main.get().output
@@ -38,6 +33,15 @@ configurations["functionalTestImplementation"]
     .extendsFrom(configurations["testImplementation"])
 configurations["functionalTestRuntimeOnly"]
     .extendsFrom(configurations["testRuntimeOnly"])
+
+dependencies {
+    add("functionalTestImplementation", libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.json)
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.kotlinx.serialization.json)
+    testImplementation("org.jetbrains.kotlinx:kover-gradle-plugin:0.9.1")
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
 
 val functionalTest by tasks.registering(Test::class) {
     testClassesDirs = functionalTestSourceSet.output.classesDirs

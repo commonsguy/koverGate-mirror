@@ -18,6 +18,7 @@ class CoverageGatePlugin : Plugin<Project> {
             minMethodCoverage.set(extension.minMethodCoverage)
             minClassCoverage.set(extension.minClassCoverage)
             disabledMetrics.set(extension.disabledMetrics)
+            prettyPrintJson.set(extension.prettyPrintJson)
             jsonReportFile.set(
                 project.layout.buildDirectory.file("reports/kover/gap-report.json")
             )
