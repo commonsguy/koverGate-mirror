@@ -1,4 +1,5 @@
 plugins {
+  alias(libs.plugins.detekt)
   `java-gradle-plugin`
   `kotlin-dsl`
   kotlin("plugin.serialization")
@@ -20,6 +21,8 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 }
 
 repositories { mavenCentral() }
+
+detekt { source.setFrom("src/functionalTest/kotlin", "src/main/kotlin", "src/test/kotlin") }
 
 ktfmt {
   googleStyle()
@@ -54,6 +57,8 @@ val functionalTest by
   }
 
 tasks.check { dependsOn(functionalTest) }
+
+tasks.check { dependsOn("detekt") }
 
 gradlePlugin {
   plugins {

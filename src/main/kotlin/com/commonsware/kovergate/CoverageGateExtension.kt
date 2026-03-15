@@ -6,11 +6,15 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 
 abstract class CoverageGateExtension @Inject constructor(objects: ObjectFactory) {
-  val minLineCoverage: Property<Int> = objects.property(Int::class.java).convention(100)
-  val minBranchCoverage: Property<Int> = objects.property(Int::class.java).convention(100)
-  val minInstructionCoverage: Property<Int> = objects.property(Int::class.java).convention(100)
-  val minMethodCoverage: Property<Int> = objects.property(Int::class.java).convention(100)
-  val minClassCoverage: Property<Int> = objects.property(Int::class.java).convention(100)
+  companion object {
+    const val FULL_COVERAGE = 100
+  }
+
+  val minLineCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  val minBranchCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  val minInstructionCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  val minMethodCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  val minClassCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
   val disabledMetrics: SetProperty<CoverageMetric> =
     objects.setProperty(CoverageMetric::class.java).convention(emptySet())
 

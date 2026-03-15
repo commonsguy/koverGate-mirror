@@ -19,13 +19,16 @@ import org.gradle.api.tasks.TaskAction
 
 // ─── Pure data + functions (unit-testable without Gradle) ──────────────────
 
+private const val PERCENT_SCALE = 100.0
+private const val ONE_DECIMAL_SCALE = 10.0
+
 data class MetricResult(val covered: Int, val total: Int, val percent: Double, val threshold: Int, val passed: Boolean)
 
 internal fun computePercent(covered: Int, missed: Int): Double {
-  if (covered == 0 && missed == 0) return 100.0
+  if (covered == 0 && missed == 0) return PERCENT_SCALE
   val total = covered + missed
   // Compute percentage and round to 1 decimal place
-  return ((covered * 100.0 / total) * 10).roundToInt() / 10.0
+  return ((covered * PERCENT_SCALE / total) * ONE_DECIMAL_SCALE).roundToInt() / ONE_DECIMAL_SCALE
 }
 
 internal fun computeMetricResult(covered: Int, missed: Int, threshold: Int): MetricResult {
