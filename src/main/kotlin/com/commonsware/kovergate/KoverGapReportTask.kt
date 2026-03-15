@@ -22,8 +22,24 @@ import org.gradle.api.tasks.TaskAction
 private const val PERCENT_SCALE = 100.0
 private const val ONE_DECIMAL_SCALE = 10.0
 
-data class MetricResult(val covered: Int, val total: Int, val percent: Double, val threshold: Int, val passed: Boolean)
+/** Result of computing coverage for a single metric. */
+data class MetricResult(
+  /** Number of instrumented units that have test coverage. */
+  val covered: Int,
+  /** Total number of instrumented units (covered + missed). */
+  val total: Int,
+  /** Coverage percentage, rounded to 1 decimal place. */
+  val percent: Double,
+  /** Minimum required coverage percentage. */
+  val threshold: Int,
+  /** True if covered meets or exceeds the threshold. */
+  val passed: Boolean,
+)
 
+/**
+ * Computes coverage percentage from covered and missed counts. Returns `PERCENT_SCALE` when both counts are zero (no
+ * lines to cover). Result is rounded to 1 decimal place.
+ */
 internal fun computePercent(covered: Int, missed: Int): Double {
   if (covered == 0 && missed == 0) return PERCENT_SCALE
   val total = covered + missed
@@ -31,6 +47,7 @@ internal fun computePercent(covered: Int, missed: Int): Double {
   return ((covered * PERCENT_SCALE / total) * ONE_DECIMAL_SCALE).roundToInt() / ONE_DECIMAL_SCALE
 }
 
+/** Creates a MetricResult by calculating percent and determining pass status. */
 internal fun computeMetricResult(covered: Int, missed: Int, threshold: Int): MetricResult {
   val percent = computePercent(covered, missed)
   return MetricResult(
@@ -42,10 +59,18 @@ internal fun computeMetricResult(covered: Int, missed: Int, threshold: Int): Met
   )
 }
 
+/**
+ * Builds a human-readable console summary of coverage results. Shows passed/failed status for each metric with counts,
+ * thresholds, and details about uncovered lines and missed branches per file.
+ */
 internal fun buildConsoleOutput(
+  /** The Gradle project path (e.g., `:app`). */
   projectPath: String,
+  /** Computed results for each coverage metric. */
   metricResults: Map<CoverageMetric, MetricResult>,
+  /** Source files that have uncovered lines or missed branch lines. */
   filesWithGaps: List<FileCoverage>,
+  /** True if the coverage gate passed overall. */
   passed: Boolean,
 ): String = buildString {
   val status = if (passed) "PASSED" else "FAILED"
@@ -75,11 +100,20 @@ internal fun buildConsoleOutput(
   }
 }
 
+/**
+ * Builds a JSON-formatted gap report from coverage results. Converts metrics to MetricJson DTOs and includes only files
+ * with gaps.
+ */
 internal fun buildJsonOutput(
+  /** The Gradle project path (e.g., `:app`). */
   projectPath: String,
+  /** True if the coverage gate passed overall. */
   passed: Boolean,
+  /** Computed results for each coverage metric. */
   metricResults: Map<CoverageMetric, MetricResult>,
+  /** Source files that have uncovered lines or missed branch lines. */
   filesWithGaps: List<FileCoverage>,
+  /** Whether to format the JSON output with indentation. Defaults to `false`. */
   prettyPrint: Boolean = false,
 ): String {
   val json = Json { this.prettyPrint = prettyPrint }
@@ -98,21 +132,31 @@ internal fun buildJsonOutput(
 
 // ─── The Gradle task ────────────────────────────────────────────────────────
 
+/**
+ * Gradle task that validates Kotlin/Kotlin-JVM coverage against configured thresholds and reports gaps in both
+ * human-readable and JSON formats.
+ */
 @CacheableTask
 abstract class KoverGapReportTask : DefaultTask() {
-
+  /** The Kover XML report file input (path-sensitive, cacheable). */
   @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) abstract val xmlReportFile: RegularFileProperty
 
+  /** Minimum required line coverage percentage. Defaults to `100`. */
   @get:Input abstract val minLineCoverage: Property<Int>
 
+  /** Minimum required branch coverage percentage. Defaults to `100`. */
   @get:Input abstract val minBranchCoverage: Property<Int>
 
+  /** Minimum required instruction coverage percentage. Defaults to `100`. */
   @get:Input abstract val minInstructionCoverage: Property<Int>
 
+  /** Minimum required method coverage percentage. Defaults to `100`. */
   @get:Input abstract val minMethodCoverage: Property<Int>
 
+  /** Minimum required class coverage percentage. Defaults to `100`. */
   @get:Input abstract val minClassCoverage: Property<Int>
 
+  /** Metrics to exclude from coverage validation. Defaults to empty set. */
   @get:Input abstract val disabledMetrics: SetProperty<CoverageMetric>
 
   /**
