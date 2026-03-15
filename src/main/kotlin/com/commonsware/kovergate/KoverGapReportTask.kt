@@ -1,7 +1,6 @@
 package com.commonsware.kovergate
 
-import java.math.BigDecimal
-import java.math.RoundingMode
+import kotlin.math.roundToInt
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
@@ -17,10 +16,9 @@ data class MetricResult(val covered: Int, val total: Int, val percent: Double, v
 
 internal fun computePercent(covered: Int, missed: Int): Double {
   if (covered == 0 && missed == 0) return 100.0
-  return BigDecimal.valueOf(covered.toLong())
-    .multiply(BigDecimal.valueOf(100))
-    .divide(BigDecimal.valueOf((covered + missed).toLong()), 1, RoundingMode.HALF_UP)
-    .toDouble()
+  val total = covered + missed
+  // Compute percentage and round to 1 decimal place
+  return ((covered * 100.0 / total) * 10).roundToInt() / 10.0
 }
 
 internal fun computeMetricResult(covered: Int, missed: Int, threshold: Int): MetricResult {

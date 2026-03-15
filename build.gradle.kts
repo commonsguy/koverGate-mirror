@@ -28,10 +28,10 @@ ktfmt {
 
 // Functional test source set
 val functionalTestSourceSet =
-    sourceSets.create("functionalTest") {
-      compileClasspath += sourceSets.main.get().output
-      runtimeClasspath += output + sourceSets.main.get().output
-    }
+  sourceSets.create("functionalTest") {
+    compileClasspath += sourceSets.main.get().output
+    runtimeClasspath += output + sourceSets.main.get().output
+  }
 
 configurations["functionalTestImplementation"].extendsFrom(configurations["testImplementation"])
 
@@ -47,11 +47,11 @@ dependencies {
 }
 
 val functionalTest by
-    tasks.registering(Test::class) {
-      testClassesDirs = functionalTestSourceSet.output.classesDirs
-      classpath = functionalTestSourceSet.runtimeClasspath
-      useJUnitPlatform()
-    }
+  tasks.registering(Test::class) {
+    testClassesDirs = functionalTestSourceSet.output.classesDirs
+    classpath = functionalTestSourceSet.runtimeClasspath
+    useJUnitPlatform()
+  }
 
 tasks.check { dependsOn(functionalTest) }
 
