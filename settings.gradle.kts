@@ -1,15 +1,15 @@
 pluginManagement {
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
+  repositories {
+    gradlePluginPortal()
+    mavenCentral()
+  }
+  resolutionStrategy {
+    eachPlugin {
+      if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
+        useVersion(embeddedKotlinVersion)
+      }
     }
-    resolutionStrategy {
-        eachPlugin {
-            if (requested.id.id.startsWith("org.jetbrains.kotlin")) {
-                useVersion(embeddedKotlinVersion)
-            }
-        }
-    }
+  }
 }
 
 rootProject.name = "cw-kovergate"
