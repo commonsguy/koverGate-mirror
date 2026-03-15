@@ -1,0 +1,10 @@
+.gradle/
+build/
+.DS_Store
+*.class
+/docs/superpowers/
+/.claude/
+/.idea/
+/gradle/wrapper/gradle-wrapper.jar
+/gradlew
+/gradlew.bat

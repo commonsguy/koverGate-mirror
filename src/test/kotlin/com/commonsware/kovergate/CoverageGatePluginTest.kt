@@ -1,0 +1,68 @@
+package com.commonsware.kovergate
+
+import org.gradle.testfixtures.ProjectBuilder
+import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
+
+class CoverageGatePluginTest {
+
+    @Test
+    fun `plugin registers koverGate extension`() {
+        val project = ProjectBuilder.builder().build()
+        // Apply Kover first so afterEvaluate check passes
+        project.pluginManager.apply("org.jetbrains.kotlinx.kover")
+        project.pluginManager.apply("com.commonsware.kovergate")
+
+        assertNotNull(project.extensions.findByName("koverGate"))
+        assertNotNull(project.extensions.findByType(CoverageGateExtension::class.java))
+    }
+
+    @Test
+    fun `plugin registers koverGapReport task`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("org.jetbrains.kotlinx.kover")
+        project.pluginManager.apply("com.commonsware.kovergate")
+
+        val task = project.tasks.findByName("koverGapReport")
+        assertNotNull(task)
+        assertTrue(task is KoverGapReportTask)
+    }
+
+    @Test
+    fun `koverGapReport task is in verification group`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("org.jetbrains.kotlinx.kover")
+        project.pluginManager.apply("com.commonsware.kovergate")
+
+        val task = project.tasks.getByName("koverGapReport")
+        assertEquals("verification", task.group)
+    }
+
+    @Test
+    fun `extension defaults are wired to task`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("org.jetbrains.kotlinx.kover")
+        project.pluginManager.apply("com.commonsware.kovergate")
+
+        val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+        assertEquals(100, task.minLineCoverage.get())
+        assertEquals(100, task.minBranchCoverage.get())
+        assertTrue(task.disabledMetrics.get().isEmpty())
+    }
+
+    @Test
+    fun `DSL changes propagate to task`() {
+        val project = ProjectBuilder.builder().build()
+        project.pluginManager.apply("org.jetbrains.kotlinx.kover")
+        project.pluginManager.apply("com.commonsware.kovergate")
+
+        project.extensions.getByType(CoverageGateExtension::class.java).apply {
+            minLineCoverage.set(80)
+            disabledMetrics.set(setOf(CoverageMetric.INSTRUCTION))
+        }
+
+        val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+        assertEquals(80, task.minLineCoverage.get())
+        assertEquals(setOf(CoverageMetric.INSTRUCTION), task.disabledMetrics.get())
+    }
+}
