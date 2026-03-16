@@ -35,28 +35,34 @@ object XmlReportParser {
   private fun parseModuleCounters(root: Element): Map<CoverageMetric, Counter> {
     val counters = mutableMapOf<CoverageMetric, Counter>()
     val children = root.childNodes
+
     for (i in 0 until children.length) {
       val node = children.item(i)
       if (node is Element && node.tagName == "counter") {
         val metric = CoverageMetric.entries.firstOrNull { it.name == node.getAttribute("type") } ?: continue
+
         counters[metric] =
           Counter(missed = node.getAttribute("missed").toInt(), covered = node.getAttribute("covered").toInt())
       }
     }
+
     return counters
   }
 
   private fun parseFiles(root: Element): List<FileCoverage> {
     val files = mutableListOf<FileCoverage>()
     val packages = root.getElementsByTagName("package")
+
     for (i in 0 until packages.length) {
       val pkg = packages.item(i) as Element
       val packageName = pkg.getAttribute("name")
       val sourceFiles = pkg.getElementsByTagName("sourcefile")
+
       for (j in 0 until sourceFiles.length) {
         files += parseSourceFile(sourceFiles.item(j) as Element, packageName)
       }
     }
+
     return files
   }
 
@@ -64,6 +70,7 @@ object XmlReportParser {
     val uncoveredLines = mutableListOf<Int>()
     val missedBranchLines = mutableListOf<Int>()
     val lines = sf.getElementsByTagName("line")
+
     for (i in 0 until lines.length) {
       val line = lines.item(i) as Element
       val nr = line.getAttribute("nr").toInt()
@@ -76,8 +83,10 @@ object XmlReportParser {
     var missedBranches = 0
     var totalBranches = 0
     val counters = sf.getElementsByTagName("counter")
+
     for (i in 0 until counters.length) {
       val c = counters.item(i) as Element
+
       if (c.getAttribute("type") == "BRANCH") {
         val missed = c.getAttribute("missed").toIntOrNull() ?: 0
         val covered = c.getAttribute("covered").toIntOrNull() ?: 0

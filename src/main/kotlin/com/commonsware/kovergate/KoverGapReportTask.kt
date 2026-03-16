@@ -42,6 +42,7 @@ data class MetricResult(
  */
 internal fun computePercent(covered: Int, missed: Int): Double {
   if (covered == 0 && missed == 0) return PERCENT_SCALE
+
   val total = covered + missed
   // Compute percentage and round to 1 decimal place
   return ((covered * PERCENT_SCALE / total) * ONE_DECIMAL_SCALE).roundToInt() / ONE_DECIMAL_SCALE
@@ -50,6 +51,7 @@ internal fun computePercent(covered: Int, missed: Int): Double {
 /** Creates a MetricResult by calculating percent and determining pass status. */
 internal fun computeMetricResult(covered: Int, missed: Int, threshold: Int): MetricResult {
   val percent = computePercent(covered, missed)
+
   return MetricResult(
     covered = covered,
     total = covered + missed,
@@ -74,24 +76,31 @@ internal fun buildConsoleOutput(
   passed: Boolean,
 ): String = buildString {
   val status = if (passed) "PASSED" else "FAILED"
+
   appendLine("Coverage gate $status for $projectPath")
+
   for ((metric, result) in metricResults) {
     val tag = if (result.passed) "[PASS]" else "[FAIL]"
     val minSuffix = if (!result.passed) "  [min: ${result.threshold}%]" else ""
+
     appendLine(
       "  ${metric.name.lowercase().replaceFirstChar { it.uppercase() }}: " +
         "${result.percent}% (${result.covered}/${result.total}) $tag$minSuffix"
     )
   }
+
   if (filesWithGaps.isNotEmpty()) {
     appendLine()
     appendLine("Files with gaps:")
+
     for (file in filesWithGaps) {
       appendLine("  ${file.name}")
+
       if (file.uncoveredLines.isNotEmpty()) {
         val plural = if (file.uncoveredLines.size == 1) "Line" else "Lines"
         appendLine("    $plural ${file.uncoveredLines.joinToString(", ")} uncovered")
       }
+
       if (file.missedBranchLines.isNotEmpty()) {
         val countSuffix = if (file.totalBranches > 0) " (${file.missedBranches} of ${file.totalBranches})" else ""
         appendLine("    Branches ${file.missedBranchLines.joinToString(", ")} missed$countSuffix")
@@ -127,6 +136,7 @@ internal fun buildJsonOutput(
         },
       files = filesWithGaps.map { FileGap(it.name, it.packageName, it.uncoveredLines, it.missedBranchLines) },
     )
+
   return json.encodeToString<GapReport>(report)
 }
 
@@ -174,6 +184,7 @@ abstract class KoverGapReportTask : DefaultTask() {
   @TaskAction
   fun generate() {
     val xmlFile = xmlReportFile.get().asFile
+
     if (!xmlFile.exists()) {
       throw GradleException(
         "Kover XML report not found at ${xmlFile.absolutePath}. " +
@@ -213,6 +224,7 @@ abstract class KoverGapReportTask : DefaultTask() {
 
     // Write JSON (always, even on pass)
     val jsonFile = jsonReportFile.get().asFile
+
     jsonFile.parentFile.mkdirs()
     jsonFile.writeText(
       buildJsonOutput(projectPath.get(), overallPassed, metricResults, filesWithGaps, prettyPrintJson.get())
@@ -220,6 +232,7 @@ abstract class KoverGapReportTask : DefaultTask() {
 
     // Print console summary
     val summary = buildConsoleOutput(projectPath.get(), metricResults, filesWithGaps, overallPassed)
+
     logger.lifecycle(summary)
 
     if (!overallPassed) {

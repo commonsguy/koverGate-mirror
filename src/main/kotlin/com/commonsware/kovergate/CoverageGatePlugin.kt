@@ -25,12 +25,9 @@ class CoverageGatePlugin : Plugin<Project> {
         jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
       }
 
-    // Wire dependency and input file from Kover's XML report task.
-    // Use whenTaskAdded so we see lazily-registered Kover tasks before they are
-    // realized.
-    // Prefer koverXmlReportJvm (JVM-specific) over koverXmlReport (all-code
-    // aggregate) to
-    // avoid double-wiring on multi-platform projects where both tasks exist.
+    // Wire dependency and input file from Kover's XML report task. Use whenTaskAdded so we see lazily-registered
+    // Kover tasks before they are realized. Prefer koverXmlReportJvm (JVM-specific) over koverXmlReport (all-code
+    // aggregate) to avoid double-wiring on multi-platform projects where both tasks exist.
     project.tasks.whenTaskAdded {
       if (name == "koverXmlReportJvm" || name == "koverXmlReport") {
         val koverTask = this

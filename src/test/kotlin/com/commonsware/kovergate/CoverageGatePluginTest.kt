@@ -23,10 +23,12 @@ class CoverageGatePluginTest {
   @Test
   fun `plugin registers koverGapReport task`() {
     val project = ProjectBuilder.builder().build()
+
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
     val task = project.tasks.findByName("koverGapReport")
+
     assertNotNull(task)
     assertTrue(task is KoverGapReportTask)
   }
@@ -34,20 +36,24 @@ class CoverageGatePluginTest {
   @Test
   fun `koverGapReport task is in verification group`() {
     val project = ProjectBuilder.builder().build()
+
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
     val task = project.tasks.getByName("koverGapReport")
+
     assertEquals("verification", task.group)
   }
 
   @Test
   fun `extension defaults are wired to task`() {
     val project = ProjectBuilder.builder().build()
+
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
     val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+
     assertEquals(100, task.minLineCoverage.get())
     assertEquals(100, task.minBranchCoverage.get())
     assertTrue(task.disabledMetrics.get().isEmpty())
@@ -57,18 +63,21 @@ class CoverageGatePluginTest {
   @Test
   fun `prettyPrintJson DSL change propagates to task`() {
     val project = ProjectBuilder.builder().build()
+
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
     project.extensions.getByType(CoverageGateExtension::class.java).prettyPrintJson.set(true)
 
     val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+
     assertTrue(task.prettyPrintJson.get())
   }
 
   @Test
   fun `DSL changes propagate to task`() {
     val project = ProjectBuilder.builder().build()
+
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
@@ -78,6 +87,7 @@ class CoverageGatePluginTest {
     }
 
     val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+
     assertEquals(80, task.minLineCoverage.get())
     assertEquals(setOf(CoverageMetric.INSTRUCTION), task.disabledMetrics.get())
   }

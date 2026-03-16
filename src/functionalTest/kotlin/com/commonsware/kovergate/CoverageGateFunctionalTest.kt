@@ -54,6 +54,7 @@ class CoverageGateFunctionalTest {
 
   private fun writeSourceFile(covered: Boolean) {
     val srcDir = File(projectDir, "src/main/kotlin/com/example")
+
     srcDir.mkdirs()
     File(srcDir, "Calculator.kt")
       .writeText(
@@ -68,6 +69,7 @@ class CoverageGateFunctionalTest {
       )
 
     val testDir = File(projectDir, "src/test/kotlin/com/example")
+
     testDir.mkdirs()
     if (covered) {
       // Tests that cover both methods
@@ -119,6 +121,7 @@ class CoverageGateFunctionalTest {
 
     val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
     val report = Json.decodeFromString<GapReport>(json)
+
     assertTrue(report.passed)
     assertTrue(report.files.isEmpty())
   }
@@ -135,9 +138,12 @@ class CoverageGateFunctionalTest {
     assertTrue(result.output.contains("Coverage gate FAILED"))
 
     val jsonFile = File(projectDir, "build/reports/kover/gap-report.json")
+
     assertTrue(jsonFile.exists(), "JSON report should be written even on failure")
+
     val json = jsonFile.readText()
     val report = Json.decodeFromString<GapReport>(json)
+
     assertFalse(report.passed)
     // Calculator.kt should appear in files with gaps
     assertTrue(
@@ -191,6 +197,7 @@ class CoverageGateFunctionalTest {
 
     val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
     val report = Json.decodeFromString<GapReport>(json)
+
     assertNull(report.metrics["BRANCH"], "Disabled metrics must not appear in JSON")
   }
 
@@ -203,6 +210,7 @@ class CoverageGateFunctionalTest {
     runner("koverGapReport").build()
 
     val expected = File(projectDir, "build/reports/kover/gap-report.json")
+
     assertTrue(expected.exists())
   }
 
@@ -213,6 +221,7 @@ class CoverageGateFunctionalTest {
     writeSourceFile(covered = true)
 
     runner("koverGapReport").build()
+
     val result = runner("koverGapReport").build()
 
     assertEquals(TaskOutcome.UP_TO_DATE, result.task(":koverGapReport")?.outcome)
@@ -244,6 +253,7 @@ class CoverageGateFunctionalTest {
     // produces a new Kover XML (new uncovered line), which changes
     // koverGapReport's @InputFile
     val src = File(projectDir, "src/main/kotlin/com/example/Calculator.kt")
+
     src.writeText(
       """
       package com.example
@@ -312,6 +322,7 @@ class CoverageGateFunctionalTest {
     )
     // Data must still be correct
     val report = Json.decodeFromString<GapReport>(json)
+
     assertTrue(report.passed)
   }
 }
