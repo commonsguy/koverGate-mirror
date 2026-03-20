@@ -11,7 +11,7 @@ plugins {
   `maven-publish`
 }
 
-group = "com.commonsware"
+group = "com.commonsware.agent"
 
 version = "0.1.0"
 
