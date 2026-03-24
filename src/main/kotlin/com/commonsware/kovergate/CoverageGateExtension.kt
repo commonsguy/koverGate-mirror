@@ -21,6 +21,11 @@ import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 
+/**
+ * DSL extension for the `koverGate {}` block in a module's `build.gradle.kts`. Configures the coverage thresholds
+ * checked by the `koverGateReport` task. All thresholds default to `100` (full coverage required). Lower a threshold or
+ * disable a metric entirely for modules where 100% is not the right target.
+ */
 abstract class CoverageGateExtension @Inject constructor(objects: ObjectFactory) {
   /** Constant representing full coverage threshold. */
   companion object {

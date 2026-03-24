@@ -16,6 +16,10 @@
 
 package com.commonsware.kovergate
 
+/**
+ * The coverage metrics that KoverGate can evaluate. Use [CoverageGateExtension.disabledMetrics] to exclude any metric
+ * that does not apply to a given module (e.g., `BRANCH` for modules with no conditional logic).
+ */
 enum class CoverageMetric {
   LINE,
   BRANCH,

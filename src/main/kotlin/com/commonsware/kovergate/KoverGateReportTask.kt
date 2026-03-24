@@ -193,8 +193,13 @@ abstract class KoverGateReportTask : DefaultTask() {
    */
   @get:Input abstract val prettyPrintJson: Property<Boolean>
 
+  /** Output path for the JSON gap report. Defaults to `build/reports/kover/gap-report.json`. */
   @get:OutputFile abstract val jsonReportFile: RegularFileProperty
 
+  /**
+   * Gradle project path (e.g., `:app`), set by the plugin from [org.gradle.api.Project.getPath]. Used as the module
+   * identifier in console and JSON output.
+   */
   @get:Internal abstract val projectPath: Property<String>
 
   @TaskAction
