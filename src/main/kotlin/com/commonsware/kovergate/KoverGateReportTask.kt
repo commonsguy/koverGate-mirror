@@ -163,7 +163,7 @@ internal fun buildJsonOutput(
  * human-readable and JSON formats.
  */
 @CacheableTask
-abstract class KoverGapReportTask : DefaultTask() {
+abstract class KoverGateReportTask : DefaultTask() {
   /** The Kover XML report file input (path-sensitive, cacheable). */
   @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) abstract val xmlReportFile: RegularFileProperty
 

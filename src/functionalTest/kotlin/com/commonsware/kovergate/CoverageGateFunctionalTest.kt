@@ -130,9 +130,9 @@ class CoverageGateFunctionalTest {
     writeBuildFile()
     writeSourceFile(covered = true)
 
-    val result = runner("koverGapReport").build()
+    val result = runner("koverGateReport").build()
 
-    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGapReport")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
     assertTrue(result.output.contains("Coverage gate PASSED"))
 
     val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
@@ -148,9 +148,9 @@ class CoverageGateFunctionalTest {
     writeBuildFile()
     writeSourceFile(covered = false)
 
-    val result = runner("koverGapReport").buildAndFail()
+    val result = runner("koverGateReport").buildAndFail()
 
-    assertEquals(TaskOutcome.FAILED, result.task(":koverGapReport")?.outcome)
+    assertEquals(TaskOutcome.FAILED, result.task(":koverGateReport")?.outcome)
     assertTrue(result.output.contains("Coverage gate FAILED"))
 
     val jsonFile = File(projectDir, "build/reports/kover/gap-report.json")
@@ -186,9 +186,9 @@ class CoverageGateFunctionalTest {
     )
     writeSourceFile(covered = false) // 50% method coverage
 
-    val result = runner("koverGapReport").build()
+    val result = runner("koverGateReport").build()
 
-    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGapReport")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
   }
 
   @Test
@@ -209,7 +209,7 @@ class CoverageGateFunctionalTest {
     )
     writeSourceFile(covered = true)
 
-    runner("koverGapReport").build()
+    runner("koverGateReport").build()
 
     val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
     val report = Json.decodeFromString<GapReport>(json)
@@ -223,7 +223,7 @@ class CoverageGateFunctionalTest {
     writeBuildFile()
     writeSourceFile(covered = true)
 
-    runner("koverGapReport").build()
+    runner("koverGateReport").build()
 
     val expected = File(projectDir, "build/reports/kover/gap-report.json")
 
@@ -236,11 +236,11 @@ class CoverageGateFunctionalTest {
     writeBuildFile()
     writeSourceFile(covered = true)
 
-    runner("koverGapReport").build()
+    runner("koverGateReport").build()
 
-    val result = runner("koverGapReport").build()
+    val result = runner("koverGateReport").build()
 
-    assertEquals(TaskOutcome.UP_TO_DATE, result.task(":koverGapReport")?.outcome)
+    assertEquals(TaskOutcome.UP_TO_DATE, result.task(":koverGateReport")?.outcome)
   }
 
   @Test
@@ -262,12 +262,12 @@ class CoverageGateFunctionalTest {
     writeSourceFile(covered = true)
 
     // First run — establishes UP-TO-DATE baseline
-    runner("koverGapReport").build()
+    runner("koverGateReport").build()
 
     // Add a new uncovered method — this changes bytecode, forces tests to
     // re-run,
     // produces a new Kover XML (new uncovered line), which changes
-    // koverGapReport's @InputFile
+    // koverGateReport's @InputFile
     val src = File(projectDir, "src/main/kotlin/com/example/Calculator.kt")
 
     src.writeText(
@@ -284,9 +284,9 @@ class CoverageGateFunctionalTest {
 
     // Second run without --rerun-tasks: task must re-run because @InputFile
     // changed
-    val result = runner("koverGapReport").build()
+    val result = runner("koverGateReport").build()
 
-    assertNotEquals(TaskOutcome.UP_TO_DATE, result.task(":koverGapReport")?.outcome)
+    assertNotEquals(TaskOutcome.UP_TO_DATE, result.task(":koverGateReport")?.outcome)
   }
 
   @Test
@@ -326,9 +326,9 @@ class CoverageGateFunctionalTest {
     )
     writeSourceFile(covered = true)
 
-    val result = runner("koverGapReport").build()
+    val result = runner("koverGateReport").build()
 
-    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGapReport")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
 
     val json = File(projectDir, "build/reports/kover/gap-report.json").readText()
     // Pretty output contains embedded newlines (not just a trailing newline)

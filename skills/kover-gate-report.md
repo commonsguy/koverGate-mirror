@@ -1,9 +1,9 @@
 ---
-name: kover-gap-report
+name: kover-gate-report
 description: Run KoverGate coverage gate and fix coverage gaps after writing or modifying tests
 ---
 
-# Kover Gap Report Skill
+# koverGate Report Skill
 
 After writing or modifying tests in a module, check coverage gaps and close them.
 
@@ -11,7 +11,7 @@ After writing or modifying tests in a module, check coverage gaps and close them
 
 1. **Run the coverage gate task** for the module you changed:
    ```bash
-   ./gradlew :<module-name>:koverGapReport
+   ./gradlew :<module-name>:koverGateReport
    ```
    Replace `<module-name>` with the Gradle module path (e.g., `:app`, `:core:data`).
 
@@ -32,7 +32,7 @@ After writing or modifying tests in a module, check coverage gaps and close them
 
 5. **Re-run the task** to confirm gaps are closed:
    ```bash
-   ./gradlew :<module-name>:koverGapReport
+   ./gradlew :<module-name>:koverGateReport
    ```
    Repeat until `"passed": true`.
 

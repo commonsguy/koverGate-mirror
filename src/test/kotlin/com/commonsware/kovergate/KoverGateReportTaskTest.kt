@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
-class KoverGapReportTaskTest {
+class KoverGateReportTaskTest {
 
   // --- computePercent ---
 

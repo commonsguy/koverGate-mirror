@@ -37,26 +37,26 @@ class CoverageGatePluginTest {
   }
 
   @Test
-  fun `plugin registers koverGapReport task`() {
+  fun `plugin registers koverGateReport task`() {
     val project = ProjectBuilder.builder().build()
 
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
-    val task = project.tasks.findByName("koverGapReport")
+    val task = project.tasks.findByName("koverGateReport")
 
     assertNotNull(task)
-    assertTrue(task is KoverGapReportTask)
+    assertTrue(task is KoverGateReportTask)
   }
 
   @Test
-  fun `koverGapReport task is in verification group`() {
+  fun `koverGateReport task is in verification group`() {
     val project = ProjectBuilder.builder().build()
 
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
-    val task = project.tasks.getByName("koverGapReport")
+    val task = project.tasks.getByName("koverGateReport")
 
     assertEquals("verification", task.group)
   }
@@ -68,7 +68,7 @@ class CoverageGatePluginTest {
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
-    val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+    val task = project.tasks.getByName("koverGateReport") as KoverGateReportTask
 
     assertEquals(100, task.minLineCoverage.get())
     assertEquals(100, task.minBranchCoverage.get())
@@ -85,7 +85,7 @@ class CoverageGatePluginTest {
 
     project.extensions.getByType(CoverageGateExtension::class.java).prettyPrintJson.set(true)
 
-    val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+    val task = project.tasks.getByName("koverGateReport") as KoverGateReportTask
 
     assertTrue(task.prettyPrintJson.get())
   }
@@ -102,7 +102,7 @@ class CoverageGatePluginTest {
       disabledMetrics.set(setOf(CoverageMetric.INSTRUCTION))
     }
 
-    val task = project.tasks.getByName("koverGapReport") as KoverGapReportTask
+    val task = project.tasks.getByName("koverGateReport") as KoverGateReportTask
 
     assertEquals(80, task.minLineCoverage.get())
     assertEquals(setOf(CoverageMetric.INSTRUCTION), task.disabledMetrics.get())
