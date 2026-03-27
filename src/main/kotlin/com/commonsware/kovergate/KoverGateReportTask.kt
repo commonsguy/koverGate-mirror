@@ -39,7 +39,7 @@ private const val PERCENT_SCALE = 100.0
 private const val ONE_DECIMAL_SCALE = 10.0
 
 /** Result of computing coverage for a single metric. */
-data class MetricResult(
+internal data class MetricResult(
   /** Number of instrumented units that have test coverage. */
   val covered: Int,
   /** Total number of instrumented units (covered + missed). */
@@ -163,27 +163,27 @@ internal fun buildJsonOutput(
  * human-readable and JSON formats.
  */
 @CacheableTask
-abstract class KoverGateReportTask : DefaultTask() {
+public abstract class KoverGateReportTask : DefaultTask() {
   /** The Kover XML report file input (path-sensitive, cacheable). */
-  @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) abstract val xmlReportFile: RegularFileProperty
+  @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) public abstract val xmlReportFile: RegularFileProperty
 
   /** Minimum required line coverage percentage. Defaults to `100`. */
-  @get:Input abstract val minLineCoverage: Property<Int>
+  @get:Input public abstract val minLineCoverage: Property<Int>
 
   /** Minimum required branch coverage percentage. Defaults to `100`. */
-  @get:Input abstract val minBranchCoverage: Property<Int>
+  @get:Input public abstract val minBranchCoverage: Property<Int>
 
   /** Minimum required instruction coverage percentage. Defaults to `100`. */
-  @get:Input abstract val minInstructionCoverage: Property<Int>
+  @get:Input public abstract val minInstructionCoverage: Property<Int>
 
   /** Minimum required method coverage percentage. Defaults to `100`. */
-  @get:Input abstract val minMethodCoverage: Property<Int>
+  @get:Input public abstract val minMethodCoverage: Property<Int>
 
   /** Minimum required class coverage percentage. Defaults to `100`. */
-  @get:Input abstract val minClassCoverage: Property<Int>
+  @get:Input public abstract val minClassCoverage: Property<Int>
 
   /** Metrics to exclude from coverage validation. Defaults to empty set. */
-  @get:Input abstract val disabledMetrics: SetProperty<CoverageMetric>
+  @get:Input public abstract val disabledMetrics: SetProperty<CoverageMetric>
 
   /**
    * Whether to pretty-print the JSON gap report output.
@@ -191,19 +191,19 @@ abstract class KoverGateReportTask : DefaultTask() {
    * When `true`, the JSON is formatted with indentation for human readability. When `false` (the default), compact JSON
    * is emitted.
    */
-  @get:Input abstract val prettyPrintJson: Property<Boolean>
+  @get:Input public abstract val prettyPrintJson: Property<Boolean>
 
   /** Output path for the JSON gap report. Defaults to `build/reports/kover/gap-report.json`. */
-  @get:OutputFile abstract val jsonReportFile: RegularFileProperty
+  @get:OutputFile public abstract val jsonReportFile: RegularFileProperty
 
   /**
    * Gradle project path (e.g., `:app`), set by the plugin from [org.gradle.api.Project.getPath]. Used as the module
    * identifier in console and JSON output.
    */
-  @get:Internal abstract val projectPath: Property<String>
+  @get:Internal public abstract val projectPath: Property<String>
 
   @TaskAction
-  fun generate() {
+  public fun generate() {
     val xmlFile = xmlReportFile.get().asFile
 
     if (!xmlFile.exists()) {

@@ -20,9 +20,9 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Element
 
-data class Counter(val missed: Int, val covered: Int)
+internal data class Counter(val missed: Int, val covered: Int)
 
-data class FileCoverage(
+internal data class FileCoverage(
   val name: String,
   val packageName: String,
   val uncoveredLines: List<Int>,
@@ -31,10 +31,10 @@ data class FileCoverage(
   val totalBranches: Int = 0,
 )
 
-data class ParseResult(val moduleCounters: Map<CoverageMetric, Counter>, val files: List<FileCoverage>)
+internal data class ParseResult(val moduleCounters: Map<CoverageMetric, Counter>, val files: List<FileCoverage>)
 
-object XmlReportParser {
-  fun parse(xmlFile: File): ParseResult {
+internal object XmlReportParser {
+  internal fun parse(xmlFile: File): ParseResult {
     val factory =
       DocumentBuilderFactory.newInstance().apply {
         // Disable external DTD loading to support offline/CI builds

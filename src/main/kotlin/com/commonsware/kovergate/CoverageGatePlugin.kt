@@ -21,7 +21,7 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 
 /** Gradle plugin that configures coverage gate checking against Kover XML reports. */
-class CoverageGatePlugin : Plugin<Project> {
+public class CoverageGatePlugin : Plugin<Project> {
   /** Configures the koverGate extension and koverGateReport task for the project. */
   override fun apply(project: Project) {
     val extension = project.extensions.create("koverGate", CoverageGateExtension::class.java)

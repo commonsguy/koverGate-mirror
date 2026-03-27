@@ -26,31 +26,31 @@ import org.gradle.api.provider.SetProperty
  * checked by the `koverGateReport` task. All thresholds default to `100` (full coverage required). Lower a threshold or
  * disable a metric entirely for modules where 100% is not the right target.
  */
-abstract class CoverageGateExtension @Inject constructor(objects: ObjectFactory) {
+public abstract class CoverageGateExtension @Inject constructor(objects: ObjectFactory) {
   /** Constant representing full coverage threshold. */
-  companion object {
-    const val FULL_COVERAGE = 100
+  public companion object {
+    public const val FULL_COVERAGE: Int = 100
   }
 
   /** Minimum required line coverage percentage. Defaults to `100`. */
-  val minLineCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  public val minLineCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
 
   /** Minimum required branch coverage percentage. Defaults to `100`. */
-  val minBranchCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  public val minBranchCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
 
   /** Minimum required instruction coverage percentage. Defaults to `100`. */
-  val minInstructionCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  public val minInstructionCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
 
   /** Minimum required method coverage percentage. Defaults to `100`. */
-  val minMethodCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  public val minMethodCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
 
   /** Minimum required class coverage percentage. Defaults to `100`. */
-  val minClassCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
+  public val minClassCoverage: Property<Int> = objects.property(Int::class.java).convention(FULL_COVERAGE)
 
   /** Metrics to exclude from coverage validation. Defaults to empty set. */
-  val disabledMetrics: SetProperty<CoverageMetric> =
+  public val disabledMetrics: SetProperty<CoverageMetric> =
     objects.setProperty(CoverageMetric::class.java).convention(emptySet())
 
   /** Whether to pretty-print the JSON gap report output. Defaults to `false`. */
-  val prettyPrintJson: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+  public val prettyPrintJson: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 }

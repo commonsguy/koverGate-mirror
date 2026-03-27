@@ -38,7 +38,7 @@ import kotlinx.serialization.Serializable
  * @param files list of source files that have uncovered lines or missed branch lines
  */
 @Serializable
-data class GapReport(
+public data class GapReport(
   val module: String,
   val passed: Boolean,
   val metrics: Map<String, MetricJson>,
@@ -55,7 +55,13 @@ data class GapReport(
  * @param passed true if [percent] is greater than or equal to [threshold]
  */
 @Serializable
-data class MetricJson(val covered: Int, val total: Int, val percent: Double, val threshold: Int, val passed: Boolean)
+public data class MetricJson(
+  val covered: Int,
+  val total: Int,
+  val percent: Double,
+  val threshold: Int,
+  val passed: Boolean,
+)
 
 /**
  * Identifies uncovered and missed-branch lines within a single source file.
@@ -66,7 +72,7 @@ data class MetricJson(val covered: Int, val total: Int, val percent: Double, val
  * @param missedBranchLines line numbers that contain branches with at least one missed branch
  */
 @Serializable
-data class FileGap(
+public data class FileGap(
   val name: String,
   @SerialName("package") val packageName: String,
   val uncoveredLines: List<Int>,
