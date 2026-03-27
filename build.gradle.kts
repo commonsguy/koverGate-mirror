@@ -1,4 +1,5 @@
 import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
+import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 
 plugins {
   alias(libs.plugins.detekt)
@@ -15,7 +16,11 @@ group = "com.commonsware.agent"
 
 version = "0.1.0"
 
-kotlin { jvmToolchain(17) }
+kotlin {
+  jvmToolchain(17)
+
+  explicitApi = ExplicitApiMode.Strict
+}
 
 java {
   withJavadocJar()
@@ -95,24 +100,23 @@ publishing {
       name.set("KoverGate Gradle Plugin")
       description.set("A Gradle plugin that gates builds on Kover coverage thresholds and generates gap reports.")
       url.set("https://codeberg.org/CommonsWare/koverGate")
+
       licenses {
         license {
           name.set("The Apache Software License, Version 2.0")
           url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
         }
       }
+
       developers {
         developer {
-          id.set("mmurphy")
+          id.set("commonsguy")
           name.set("Mark Murphy")
           email.set("mmurphy@commonsware.com")
         }
       }
-      scm {
-        connection.set("scm:git:https://codeberg.org/CommonsWare/koverGate.git")
-        developerConnection.set("scm:git:ssh://codeberg.org/CommonsWare/koverGate.git")
-        url.set("https://codeberg.org/CommonsWare/koverGate")
-      }
+
+      scm { url.set("https://codeberg.org/CommonsWare/koverGate") }
     }
   }
 }
