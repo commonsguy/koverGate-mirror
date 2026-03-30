@@ -1,3 +1,4 @@
+import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 
@@ -5,14 +6,13 @@ plugins {
   alias(libs.plugins.detekt)
   alias(libs.plugins.dokka)
   alias(libs.plugins.dokka.javadoc)
-  `java-gradle-plugin`
   `kotlin-dsl`
   kotlin("plugin.serialization")
   alias(libs.plugins.ktfmt.gradle)
-  `maven-publish`
+  alias(libs.plugins.plugin.publish)
 }
 
-group = "com.commonsware.agent"
+group = "com.commonsware.kovergate"
 
 version = "0.1.0"
 
@@ -82,10 +82,22 @@ tasks.named<Jar>("javadocJar") {
 }
 
 gradlePlugin {
+  website.set("https://codeberg.org/CommonsWare/koverGate")
+  vcsUrl.set("https://codeberg.org/CommonsWare/koverGate")
+
   plugins {
     create("koverGate") {
       id = "com.commonsware.kovergate"
       implementationClass = "com.commonsware.kovergate.CoverageGatePlugin"
+      displayName = "KoverGate Plugin"
+      description = "A Gradle plugin that gates builds on Kover coverage thresholds and generates gap reports"
+      tags.set(listOf("coverage", "kover", "quality", "testing"))
+
+      compatibility {
+        features {
+          configurationCache = true
+        }
+      }
     }
   }
   // Registers functionalTest as a plugin test source set:

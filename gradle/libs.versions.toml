@@ -18,3 +18,4 @@ dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 ktfmt-gradle = { id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt-gradle" }
+plugin-publish = { id = "com.gradle.plugin-publish", version = "2.1.1" }

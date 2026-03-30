@@ -341,4 +341,22 @@ class CoverageGateFunctionalTest {
 
     assertTrue(report.passed)
   }
+
+  @Test
+  fun `task is compatible with configuration cache`() {
+    writeSettingsFile()
+    writeBuildFile()
+    writeSourceFile(covered = true)
+
+    // First run: populates the configuration cache
+    runner("koverGateReport", "--configuration-cache").build()
+
+    // Second run: must reuse the configuration cache
+    val result = runner("koverGateReport", "--configuration-cache").build()
+
+    assertTrue(
+      result.output.contains("Reusing configuration cache"),
+      "Expected configuration cache to be reused on second run. Output:\n${result.output}",
+    )
+  }
 }
