@@ -1,6 +1,6 @@
 # KoverGate
 
-A Gradle plugin that gates builds on [Kover](https://github.com/Kotlin/kotlinx-kover) coverage thresholds and generates structured gap reports. The objective is to make it easier for agents to process coverage results and identify where more tests are required.
+A Gradle plugin that gates builds on [Kover](https://github.com/Kotlin/kotlinx-kover) coverage thresholds and generates structured gap reports. The objective is to make it easier for coding agents to process coverage results and identify where more tests are required.
 
 When the `koverGateReport` task runs, it reads Kover's XML coverage report, checks each enabled metric against its configured minimum, and fails the build if any metric falls short. It always writes a JSON report to `build/reports/kover/gap-report.json` — even on success — so that both humans and automated agents can consistently parse the results.
 
@@ -12,7 +12,7 @@ When the `koverGateReport` task runs, it reads Kover's XML coverage report, chec
 
 ## Adding the Plugin
 
-The plugin is published to Maven Central. Apply it alongside Kover in your module's `build.gradle.kts`:
+The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in your module's `build.gradle.kts`:
 
 ```kotlin
 plugins {
@@ -21,7 +21,7 @@ plugins {
 }
 ```
 
-No additional repository declarations are needed if you already have `mavenCentral()` in your `settings.gradle.kts` plugin management block:
+No additional repository declarations are needed if you already have `gradlePluginPortal()` in your `settings.gradle.kts` plugin management block:
 
 ```kotlin
 pluginManagement {

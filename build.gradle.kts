@@ -82,8 +82,8 @@ tasks.named<Jar>("javadocJar") {
 }
 
 gradlePlugin {
-  website.set("https://codeberg.org/CommonsWare/koverGate")
-  vcsUrl.set("https://codeberg.org/CommonsWare/koverGate")
+  website.set("https://codeberg.org/commonsguy/koverGate")
+  vcsUrl.set("https://codeberg.org/commonsguy/koverGate")
 
   plugins {
     create("koverGate") {
@@ -111,7 +111,7 @@ publishing {
     pom {
       name.set("KoverGate Gradle Plugin")
       description.set("A Gradle plugin that gates builds on Kover coverage thresholds and generates gap reports.")
-      url.set("https://codeberg.org/CommonsWare/koverGate")
+      url.set("https://codeberg.org/commonsguy/koverGate")
 
       licenses {
         license {
@@ -128,7 +128,7 @@ publishing {
         }
       }
 
-      scm { url.set("https://codeberg.org/CommonsWare/koverGate") }
+      scm { url.set("https://codeberg.org/commonsguy/koverGate") }
     }
   }
 }
