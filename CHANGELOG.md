@@ -21,4 +21,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
-[0.1.0]: https://codeberg.org/commonsguy/koverGate/releases/tag/0.1.0
+[0.1.0]: https://codeberg.org/commonsguy/koverGate/src/tag/0.1.0
