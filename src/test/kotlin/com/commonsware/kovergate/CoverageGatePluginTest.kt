@@ -107,4 +107,14 @@ class CoverageGatePluginTest {
     assertEquals(80, task.minLineCoverage.get())
     assertEquals(setOf(CoverageMetric.INSTRUCTION), task.disabledMetrics.get())
   }
+
+  @Test
+  fun `xmlReportTask defaults to empty string`() {
+    val project = ProjectBuilder.builder().build()
+    project.pluginManager.apply("org.jetbrains.kotlinx.kover")
+    project.pluginManager.apply("com.commonsware.kovergate")
+
+    val ext = project.extensions.getByType(CoverageGateExtension::class.java)
+    assertEquals("", ext.xmlReportTask.get())
+  }
 }

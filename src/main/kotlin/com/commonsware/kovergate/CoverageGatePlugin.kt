@@ -41,28 +41,41 @@ public class CoverageGatePlugin : Plugin<Project> {
         jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
       }
 
-    // Wire dependency and input file from Kover's XML report task. Use whenTaskAdded so we see lazily-registered
-    // Kover tasks before they are realized. Prefer koverXmlReportJvm (JVM-specific) over koverXmlReport (all-code
-    // aggregate) to avoid double-wiring on multi-platform projects where both tasks exist.
-    project.tasks.whenTaskAdded {
-      if (name == "koverXmlReportJvm" || name == "koverXmlReport") {
-        val koverTask = this
-        taskProvider.configure {
-          // Only wire the first match (koverXmlReportJvm wins if both register)
-          if (!xmlReportFile.isPresent) {
-            dependsOn(koverTask)
-            xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
-          }
-        }
-      }
-    }
-
     project.afterEvaluate {
       if (!project.pluginManager.hasPlugin("org.jetbrains.kotlinx.kover")) {
         throw GradleException(
           "KoverGate requires the Kover plugin. " +
             "Apply 'org.jetbrains.kotlinx.kover' before 'com.commonsware.kovergate'."
         )
+      }
+
+      val customTaskName = extension.xmlReportTask.get().takeIf { it.isNotBlank() }
+      val koverTask =
+        if (customTaskName != null) {
+          project.tasks.findByName(customTaskName)
+            ?: throw GradleException(
+              "KoverGate: xmlReportTask '$customTaskName' not found in project '${project.path}'. " +
+                "Ensure the task name is correct and the Kover plugin is applied."
+            )
+        } else {
+          project.tasks.findByName("koverXmlReportJvm")
+            ?: project.tasks.findByName("koverXmlReport")
+            ?: run {
+              val candidates = project.tasks.names.filter { it.startsWith("koverXmlReport") }.sorted()
+              val hint =
+                if (candidates.isNotEmpty()) " Available koverXmlReport* tasks: ${candidates.joinToString(", ")}."
+                else ""
+              throw GradleException(
+                "KoverGate: Could not find 'koverXmlReportJvm' or 'koverXmlReport'. " +
+                  "For Android projects, specify the variant task in the koverGate {} block " +
+                  "(e.g., xmlReportTask.set(\"koverXmlReportDebug\")). $hint"
+              )
+            }
+        }
+
+      taskProvider.configure {
+        dependsOn(koverTask)
+        xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
       }
     }
   }

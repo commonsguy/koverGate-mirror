@@ -14,7 +14,7 @@ plugins {
 
 group = "com.commonsware.kovergate"
 
-version = "0.1.0"
+version = "0.1.1"
 
 kotlin {
   jvmToolchain(17)
@@ -93,11 +93,7 @@ gradlePlugin {
       description = "A Gradle plugin that gates builds on Kover coverage thresholds and generates gap reports"
       tags.set(listOf("coverage", "kover", "quality", "testing"))
 
-      compatibility {
-        features {
-          configurationCache = true
-        }
-      }
+      compatibility { features { configurationCache = true } }
     }
   }
   // Registers functionalTest as a plugin test source set:

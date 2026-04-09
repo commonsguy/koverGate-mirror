@@ -17,7 +17,7 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.1"
-    id("com.commonsware.kovergate") version "0.1.0"
+    id("com.commonsware.kovergate") version "0.1.1"
 }
 ```
 
@@ -53,6 +53,10 @@ koverGate {
     // Pretty-print the JSON gap report (useful for debugging).
     // Defaults to false.
     prettyPrintJson.set(true)
+
+    // Kover XML report task to wire to. Required for Android projects — see below.
+    // Defaults to auto-detecting koverXmlReportJvm or koverXmlReport.
+    xmlReportTask.set("koverXmlReportDebug")
 }
 ```
 
@@ -65,6 +69,18 @@ koverGate {
 | `CoverageMetric.INSTRUCTION` | Yes |
 | `CoverageMetric.METHOD` | Yes |
 | `CoverageMetric.CLASS` | Yes |
+
+### Android Projects
+
+For Android projects, Kover generates build-variant-specific XML report tasks (`koverXmlReportDebug`, `koverXmlReportRelease`, etc.) rather than the `koverXmlReportJvm` task used by JVM modules. Set `xmlReportTask` to tell KoverGate which variant to gate on:
+
+```kotlin
+koverGate {
+    xmlReportTask.set("koverXmlReportDebug")
+}
+```
+
+If you forget to set this and no auto-detectable task exists, the build will fail with a message listing the available `koverXmlReport*` tasks to help you choose the right name.
 
 ## Running the Task
 

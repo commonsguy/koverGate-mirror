@@ -53,4 +53,17 @@ public abstract class CoverageGateExtension @Inject constructor(objects: ObjectF
 
   /** Whether to pretty-print the JSON gap report output. Defaults to `false`. */
   public val prettyPrintJson: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
+
+  /**
+   * Name of the Kover XML report task to wire to `koverGateReport`. When blank (the default), the plugin auto-detects
+   * `koverXmlReportJvm` (JVM projects) or `koverXmlReport` (multiplatform aggregate).
+   *
+   * Set this for Android projects where Kover generates variant-specific tasks:
+   * ```
+   * koverGate {
+   *     xmlReportTask.set("koverXmlReportDebug")
+   * }
+   * ```
+   */
+  public val xmlReportTask: Property<String> = objects.property(String::class.java).convention("")
 }

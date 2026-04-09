@@ -359,4 +359,23 @@ class CoverageGateFunctionalTest {
       "Expected configuration cache to be reused on second run. Output:\n${result.output}",
     )
   }
+
+  @Test
+  fun `explicit xmlReportTask override runs successfully`() {
+    writeSettingsFile()
+    writeBuildFile(
+      """
+      koverGate {
+          xmlReportTask.set("koverXmlReportJvm")
+      }
+      """
+        .trimIndent()
+    )
+    writeSourceFile(covered = true)
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+    assertTrue(result.output.contains("Coverage gate PASSED"))
+  }
 }

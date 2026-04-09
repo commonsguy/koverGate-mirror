@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-04-09
+
+### Added
+
+- `xmlReportTask` DSL property in the `koverGate {}` block for specifying the Kover XML report task by name; enables Android projects to select a build-variant report (e.g., `xmlReportTask.set("koverXmlReportDebug")`)
+
+### Fixed
+
+- Plugin now emits a descriptive error when no Kover XML report task can be auto-detected, rather than failing with an opaque "no value for `xmlReportFile`" input-validation error
+
 ## [0.1.0] - 2026-03-27
 
 ### Added
@@ -21,4 +31,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
+[0.1.1]: https://codeberg.org/commonsguy/koverGate/compare/0.1.0...0.1.1
 [0.1.0]: https://codeberg.org/commonsguy/koverGate/src/tag/0.1.0
