@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-04-14
+
+### Changed
+
+- Bumped Kover dependency from 0.9.1 to 0.9.8
+
 ## [0.1.1] - 2026-04-09
 
 ### Added
@@ -31,5 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
+[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.1.2...HEAD
+[0.1.2]: https://codeberg.org/commonsguy/koverGate/compare/0.1.1...0.1.2
 [0.1.1]: https://codeberg.org/commonsguy/koverGate/compare/0.1.0...0.1.1
 [0.1.0]: https://codeberg.org/commonsguy/koverGate/src/tag/0.1.0

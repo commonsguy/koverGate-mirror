@@ -16,8 +16,8 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 
 ```kotlin
 plugins {
-    id("org.jetbrains.kotlinx.kover") version "0.9.1"
-    id("com.commonsware.kovergate") version "0.1.1"
+    id("org.jetbrains.kotlinx.kover") version "0.9.8"
+    id("com.commonsware.kovergate") version "0.1.2"
 }
 ```
 

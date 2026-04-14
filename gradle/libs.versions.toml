@@ -4,7 +4,7 @@ dokka = "2.1.0"
 junit = "5.11.4"
 junit-platform = "1.11.4"
 kotlinx-serialization = "1.6.3"
-kover = "0.9.1"
+kover = "0.9.8"
 ktfmt-gradle = "0.25.0"
 
 [libraries]

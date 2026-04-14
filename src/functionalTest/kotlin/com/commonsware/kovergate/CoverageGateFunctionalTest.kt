@@ -56,7 +56,7 @@ class CoverageGateFunctionalTest {
         """
             plugins {
                 kotlin("jvm") version "2.0.21"
-                id("org.jetbrains.kotlinx.kover") version "0.9.1"
+                id("org.jetbrains.kotlinx.kover") version "0.9.8"
                 id("com.commonsware.kovergate")
             }
             repositories { mavenCentral() }
