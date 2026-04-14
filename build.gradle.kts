@@ -14,7 +14,7 @@ plugins {
 
 group = "com.commonsware.kovergate"
 
-version = "0.1.1"
+version = "0.1.2"
 
 kotlin {
   jvmToolchain(17)
@@ -59,7 +59,7 @@ dependencies {
   implementation(libs.kotlinx.serialization.json)
   testImplementation(libs.junit.jupiter)
   testImplementation(libs.kotlinx.serialization.json)
-  testImplementation("org.jetbrains.kotlinx:kover-gradle-plugin:0.9.1")
+  testImplementation(libs.kotlinx.kover.gradle.plugin)
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 
