@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 
 plugins {
   alias(libs.plugins.detekt)
+  alias(libs.plugins.detektifier)
   alias(libs.plugins.dokka)
   alias(libs.plugins.dokka.javadoc)
   `kotlin-dsl`

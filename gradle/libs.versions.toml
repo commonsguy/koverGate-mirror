@@ -1,5 +1,6 @@
 [versions]
 detekt = "1.23.8"
+detektifier = "0.1.1"
 dokka = "2.1.0"
 junit = "5.11.4"
 junit-platform = "1.11.4"
@@ -15,6 +16,7 @@ kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serializa
 
 [plugins]
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+detektifier = { id = "com.commonsware.detektifier", version.ref = "detektifier" }
 dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
 dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
