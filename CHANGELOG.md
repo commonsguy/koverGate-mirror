@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-04-29
+
+### Changed
+
+- Bumped detektifier from 0.1.1 to 0.1.2
+- Bumped Dokka from 2.1.0 to 2.2.0
+- Bumped JUnit from 5.11.4 to 5.14.4
+- Bumped kotlinx-serialization from 1.6.3 to 1.11.0
+- Bumped ktfmt-gradle from 0.25.0 to 0.26.0
+- Upgraded Gradle wrapper from 8.10.2 to 9.5.0
+
 ## [0.1.2] - 2026-04-14
 
 ### Changed
@@ -37,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
-[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.1.2...HEAD
+[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.1.3...HEAD
+[0.1.3]: https://codeberg.org/commonsguy/koverGate/compare/0.1.2...0.1.3
 [0.1.2]: https://codeberg.org/commonsguy/koverGate/compare/0.1.1...0.1.2
 [0.1.1]: https://codeberg.org/commonsguy/koverGate/compare/0.1.0...0.1.1
 [0.1.0]: https://codeberg.org/commonsguy/koverGate/src/tag/0.1.0

@@ -15,7 +15,7 @@ plugins {
 
 group = "com.commonsware.kovergate"
 
-version = "0.1.2"
+version = "0.1.3"
 
 kotlin {
   jvmToolchain(17)
@@ -29,9 +29,9 @@ java {
 }
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-  kotlinOptions {
-    languageVersion = "1.9"
-    apiVersion = "1.9"
+  compilerOptions {
+    languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
+    apiVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_1)
   }
 }
 

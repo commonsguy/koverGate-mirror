@@ -1,12 +1,12 @@
 [versions]
 detekt = "1.23.8"
-detektifier = "0.1.1"
-dokka = "2.1.0"
-junit = "5.11.4"
-junit-platform = "1.11.4"
-kotlinx-serialization = "1.6.3"
+detektifier = "0.1.2"
+dokka = "2.2.0"
+junit = "5.14.4"
+junit-platform = "1.14.4"
+kotlinx-serialization = "1.11.0"
 kover = "0.9.8"
-ktfmt-gradle = "0.25.0"
+ktfmt-gradle = "0.26.0"
 
 [libraries]
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
