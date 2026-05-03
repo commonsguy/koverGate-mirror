@@ -17,7 +17,7 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.1.3"
+    id("com.commonsware.kovergate") version "0.2.0"
 }
 ```
 
@@ -81,6 +81,63 @@ koverGate {
 ```
 
 If you forget to set this and no auto-detectable task exists, the build will fail with a message listing the available `koverXmlReport*` tasks to help you choose the right name.
+
+### Multi-Module Projects
+
+For multi-module builds, apply the plugin to the root project as well as each submodule. The root project does not require the Kover plugin.
+
+**Root `build.gradle.kts`:**
+```kotlin
+plugins {
+    id("com.commonsware.kovergate") version "0.2.0"
+}
+```
+
+**Each submodule `build.gradle.kts`:**
+```kotlin
+plugins {
+    id("org.jetbrains.kotlinx.kover") version "0.9.8"
+    id("com.commonsware.kovergate") version "0.2.0"
+}
+```
+
+When the root project has subprojects, KoverGate registers an aggregate `koverGateReport` task at root that depends on all submodule `koverGateReport` tasks. Running:
+
+```bash
+./gradlew koverGateReport
+```
+
+runs every submodule task, then writes an aggregate `build/reports/kover/gap-report.json` at the root. The aggregate report contains a `modules` array — one `GapReport` entry per submodule — and a top-level `passed` field that is `true` only when every module passed.
+
+**Note:** The aggregate report is only generated when all submodule tasks succeed. To run all checks even when some fail and still collect per-module JSON reports from passing modules, use `--continue`:
+
+```bash
+./gradlew koverGateReport --continue
+```
+
+Individual per-module reports remain at `<module>/build/reports/kover/gap-report.json` regardless of whether the root plugin is applied.
+
+#### Aggregate JSON Structure
+
+```json
+{
+  "passed": true,
+  "modules": [
+    {
+      "module": ":core",
+      "passed": true,
+      "metrics": { "LINE": { "covered": 200, "total": 200, "percent": 100.0, "threshold": 100, "passed": true } },
+      "files": []
+    },
+    {
+      "module": ":app",
+      "passed": true,
+      "metrics": { "LINE": { "covered": 150, "total": 150, "percent": 100.0, "threshold": 100, "passed": true } },
+      "files": []
+    }
+  ]
+}
+```
 
 ## Running the Task
 

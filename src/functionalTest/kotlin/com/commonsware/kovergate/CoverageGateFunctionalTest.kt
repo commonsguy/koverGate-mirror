@@ -377,4 +377,201 @@ class CoverageGateFunctionalTest {
     assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
     assertTrue(result.output.contains("Coverage gate PASSED"))
   }
+
+  // ── Multi-module helpers ──────────────────────────────────────────────────
+
+  private fun writeMultiModuleSettingsFile() {
+    File(projectDir, "settings.gradle.kts")
+      .writeText(
+        """
+        pluginManagement {
+            repositories {
+                gradlePluginPortal()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "multi-module-test"
+        include(":moduleA", ":moduleB")
+        """
+          .trimIndent()
+      )
+  }
+
+  private fun writeRootBuildFile(koverGateBlock: String = "") {
+    File(projectDir, "build.gradle.kts")
+      .writeText(
+        """
+        plugins {
+            id("com.commonsware.kovergate")
+        }
+        $koverGateBlock
+        """
+          .trimIndent()
+      )
+  }
+
+  private fun writeSubmoduleBuildFile(moduleDir: File, koverGateBlock: String = "") {
+    File(moduleDir, "build.gradle.kts")
+      .writeText(
+        """
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("org.jetbrains.kotlinx.kover") version "0.9.8"
+            id("com.commonsware.kovergate")
+        }
+        repositories { mavenCentral() }
+        dependencies { testImplementation(kotlin("test")) }
+        tasks.test { useJUnitPlatform() }
+        $koverGateBlock
+        """
+          .trimIndent()
+      )
+  }
+
+  private fun writeSubmoduleSource(moduleDir: File, covered: Boolean) {
+    val srcDir = File(moduleDir, "src/main/kotlin/com/example")
+
+    srcDir.mkdirs()
+    File(srcDir, "Calculator.kt")
+      .writeText(
+        """
+        package com.example
+        class Calculator {
+            fun add(a: Int, b: Int): Int = a + b
+            fun subtract(a: Int, b: Int): Int = a - b
+        }
+        """
+          .trimIndent()
+      )
+
+    val testDir = File(moduleDir, "src/test/kotlin/com/example")
+
+    testDir.mkdirs()
+    if (covered) {
+      File(testDir, "CalculatorTest.kt")
+        .writeText(
+          """
+          package com.example
+          import kotlin.test.Test
+          import kotlin.test.assertEquals
+          class CalculatorTest {
+              private val calc = Calculator()
+              @Test fun add() = assertEquals(5, calc.add(2, 3))
+              @Test fun subtract() = assertEquals(1, calc.subtract(3, 2))
+          }
+          """
+            .trimIndent()
+        )
+    } else {
+      File(testDir, "CalculatorTest.kt")
+        .writeText(
+          """
+          package com.example
+          import kotlin.test.Test
+          import kotlin.test.assertEquals
+          class CalculatorTest {
+              private val calc = Calculator()
+              @Test fun add() = assertEquals(5, calc.add(2, 3))
+          }
+          """
+            .trimIndent()
+        )
+    }
+  }
+
+  // ── Multi-module tests ────────────────────────────────────────────────────
+
+  @Test
+  fun `aggregate report is generated for fully covered multi-module project`() {
+    writeMultiModuleSettingsFile()
+    writeRootBuildFile()
+    val moduleA = File(projectDir, "moduleA").also { it.mkdirs() }
+    val moduleB = File(projectDir, "moduleB").also { it.mkdirs() }
+
+    writeSubmoduleBuildFile(moduleA)
+    writeSubmoduleBuildFile(moduleB)
+    writeSubmoduleSource(moduleA, covered = true)
+    writeSubmoduleSource(moduleB, covered = true)
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":moduleA:koverGateReport")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":moduleB:koverGateReport")?.outcome)
+
+    val aggregateFile = File(projectDir, "build/reports/kover/gap-report.json")
+
+    assertTrue(aggregateFile.exists(), "Aggregate gap report should be written at root")
+
+    val aggregate = Json.decodeFromString<AggregateGapReport>(aggregateFile.readText())
+
+    assertTrue(aggregate.passed)
+    assertEquals(2, aggregate.modules.size)
+    assertTrue(aggregate.modules.any { it.module == ":moduleA" })
+    assertTrue(aggregate.modules.any { it.module == ":moduleB" })
+  }
+
+  @Test
+  fun `aggregate report captures gap details from submodule with lowered thresholds`() {
+    writeMultiModuleSettingsFile()
+    writeRootBuildFile()
+    val moduleA = File(projectDir, "moduleA").also { it.mkdirs() }
+    val moduleB = File(projectDir, "moduleB").also { it.mkdirs() }
+
+    writeSubmoduleBuildFile(moduleA)
+    // Lower thresholds so partial coverage still passes the gate,
+    // but gap files are still present in the JSON
+    writeSubmoduleBuildFile(
+      moduleB,
+      """
+      koverGate {
+          minLineCoverage.set(50)
+          minBranchCoverage.set(50)
+          minInstructionCoverage.set(50)
+          minMethodCoverage.set(50)
+          minClassCoverage.set(50)
+      }
+      """
+        .trimIndent(),
+    )
+    writeSubmoduleSource(moduleA, covered = true)
+    writeSubmoduleSource(moduleB, covered = false)
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+
+    val aggregateFile = File(projectDir, "build/reports/kover/gap-report.json")
+    val aggregate = Json.decodeFromString<AggregateGapReport>(aggregateFile.readText())
+
+    assertTrue(aggregate.passed)
+    val moduleBReport = aggregate.modules.first { it.module == ":moduleB" }
+
+    assertTrue(
+      moduleBReport.files.isNotEmpty(),
+      "moduleB should have gap files even though thresholds are lowered",
+    )
+  }
+
+  @Test
+  fun `aggregate report is not generated when a submodule fails its coverage gate`() {
+    writeMultiModuleSettingsFile()
+    writeRootBuildFile()
+    val moduleA = File(projectDir, "moduleA").also { it.mkdirs() }
+    val moduleB = File(projectDir, "moduleB").also { it.mkdirs() }
+
+    writeSubmoduleBuildFile(moduleA)
+    writeSubmoduleBuildFile(moduleB) // default 100% thresholds
+    writeSubmoduleSource(moduleA, covered = true)
+    writeSubmoduleSource(moduleB, covered = false) // will fail at 100% threshold
+
+    runner("koverGateReport").buildAndFail()
+
+    val aggregateFile = File(projectDir, "build/reports/kover/gap-report.json")
+
+    assertFalse(
+      aggregateFile.exists(),
+      "Aggregate report must not be generated when a submodule fails",
+    )
+  }
 }

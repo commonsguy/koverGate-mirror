@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-03
+
+### Added
+
+- Multi-module aggregate gap report: applying `com.commonsware.kovergate` to the root project of a multi-module build now generates `build/reports/kover/gap-report.json` at the root, merging all per-submodule gap reports into a single `AggregateGapReport` (with a `modules` array)
+
 ## [0.1.3] - 2026-04-29
 
 ### Changed
@@ -48,7 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
-[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.1.3...HEAD
+[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.2.0...HEAD
+[0.2.0]: https://codeberg.org/commonsguy/koverGate/compare/0.1.3...0.2.0
 [0.1.3]: https://codeberg.org/commonsguy/koverGate/compare/0.1.2...0.1.3
 [0.1.2]: https://codeberg.org/commonsguy/koverGate/compare/0.1.1...0.1.2
 [0.1.1]: https://codeberg.org/commonsguy/koverGate/compare/0.1.0...0.1.1

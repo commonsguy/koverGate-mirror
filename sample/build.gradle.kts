@@ -1,7 +1,7 @@
 plugins {
   kotlin("jvm")
   id("org.jetbrains.kotlinx.kover") version "0.9.8"
-  id("com.commonsware.kovergate") version "0.1.3"
+  id("com.commonsware.kovergate") version "0.2.0"
 }
 
 repositories {

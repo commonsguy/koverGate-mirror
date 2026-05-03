@@ -15,7 +15,7 @@ plugins {
 
 group = "com.commonsware.kovergate"
 
-version = "0.1.3"
+version = libs.versions.kovergate.get()
 
 kotlin {
   jvmToolchain(17)

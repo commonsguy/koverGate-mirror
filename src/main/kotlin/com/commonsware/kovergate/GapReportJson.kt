@@ -78,3 +78,15 @@ public data class FileGap(
   val uncoveredLines: List<Int>,
   val missedBranchLines: List<Int>,
 )
+
+/**
+ * Top-level structure for the root-level aggregate gap-report.json in multi-module projects.
+ *
+ * @param passed true if every module passed its coverage thresholds; false if any failed
+ * @param modules list of per-module gap reports, one entry per submodule that ran koverGateReport
+ */
+@Serializable
+public data class AggregateGapReport(
+  val passed: Boolean,
+  val modules: List<GapReport>,
+)
