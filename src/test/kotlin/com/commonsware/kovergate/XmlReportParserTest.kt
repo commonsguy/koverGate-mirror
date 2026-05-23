@@ -240,6 +240,27 @@ class XmlReportParserTest {
   }
 
   @Test
+  fun `parses real AGP merged JaCoCo XML with DOCTYPE`() {
+    val xml = File("src/test/resources/jacoco/android-merged-sample.xml")
+
+    val result = XmlReportParser.parse(xml)
+
+    // Root-level counters from the captured android-merged fixture (AGP 8.11.2 / Kover 0.9.8).
+    // Widget has no branches, so BRANCH is absent.
+    assertEquals(Counter(missed = 0, covered = 3), result.moduleCounters[CoverageMetric.LINE])
+    assertEquals(Counter(missed = 0, covered = 11), result.moduleCounters[CoverageMetric.INSTRUCTION])
+    assertEquals(Counter(missed = 0, covered = 3), result.moduleCounters[CoverageMetric.METHOD])
+    assertEquals(Counter(missed = 0, covered = 1), result.moduleCounters[CoverageMetric.CLASS])
+    assertTrue(result.moduleCounters[CoverageMetric.BRANCH] == null)
+
+    // Widget.kt: computeLocally covered by unit test, computeRemotely by instrumented test —
+    // the merge means both appear covered and neither list has entries.
+    val widget = result.files.single { it.name == "Widget.kt" }
+    assertTrue(widget.uncoveredLines.isEmpty())
+    assertTrue(widget.missedBranchLines.isEmpty())
+  }
+
+  @Test
   fun `reads file-level branch counts for display`() {
     val result =
       parseXml(

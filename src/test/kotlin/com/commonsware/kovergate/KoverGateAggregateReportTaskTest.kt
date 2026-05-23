@@ -71,10 +71,7 @@ class KoverGateAggregateReportTaskTest {
   fun `prettyPrint=true produces indented JSON`() {
     val json = buildAggregateJsonOutput(listOf(passingModule), prettyPrint = true)
 
-    assertTrue(
-      json.indexOf('\n') < json.trimEnd().lastIndex,
-      "Pretty JSON should contain embedded newlines",
-    )
+    assertTrue(json.indexOf('\n') < json.trimEnd().lastIndex, "Pretty JSON should contain embedded newlines")
   }
 
   @Test

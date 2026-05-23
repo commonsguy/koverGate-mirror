@@ -85,6 +85,36 @@ To enable the aggregate report for an existing multi-module project:
 3. **Run `./gradlew koverGateReport`** from the project root to verify the aggregate report is
    generated at `build/reports/kover/gap-report.json`.
 
+## Merged Unit + Instrumented Coverage (Android)
+
+When a module's `koverGate {}` block sets `xmlReportFile` pointing to a `JacocoReport` merge task,
+the gap report reflects coverage from **both** unit tests (`test/`) and Android instrumented tests
+(`androidTest/`) combined. The exec data is merged at the JaCoCo execution-data level before the
+XML is produced, so the parser sees a single unified view.
+
+**Interpreting gaps in a merged report:**
+
+- A line in `uncoveredLines` means **neither** test type covers it — not just one.
+- A line in `missedBranchLines` means a branch at that line is missed by the union of both suites.
+- The fix may be a unit test *or* an instrumented test depending on what the code path needs:
+  - Pure Kotlin/JVM logic → add a unit test in `src/test/`.
+  - Code that calls Android framework APIs (`Context`, `Activity`, `View`, etc.) or requires a
+    real device/emulator → add an instrumented test in `src/androidTest/`.
+
+**Running the gate when `xmlReportFile` is set:**
+
+`koverGateReport` infers a dependency on the `JacocoReport` merge task through the `TaskProvider`
+used to wire `xmlReportFile`. Running `koverGateReport` alone is sufficient — it triggers
+`mergedCoverage`, which in turn triggers `testDebugUnitTest` and `createDebugCoverageReport`
+(the latter runs connected tests on the device). A connected device or emulator must be attached.
+
+```bash
+./gradlew :<module>:koverGateReport
+```
+
+**Kover optional:** when `xmlReportFile` is set, the Kover plugin need not be applied. The AGP-only
+scenario (no Kover, exec from the Gradle `jacoco` plugin + AGP instrumented) is fully supported.
+
 ## Notes
 
 - Adjust thresholds in your module's `build.gradle.kts` via the `koverGate {}` block if 100% is not the right target for a specific metric.

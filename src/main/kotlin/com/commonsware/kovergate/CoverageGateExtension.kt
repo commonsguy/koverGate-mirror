@@ -17,6 +17,7 @@
 package com.commonsware.kovergate
 
 import javax.inject.Inject
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
@@ -66,4 +67,28 @@ public abstract class CoverageGateExtension @Inject constructor(objects: ObjectF
    * ```
    */
   public val xmlReportTask: Property<String> = objects.property(String::class.java).convention("")
+
+  /**
+   * Explicit path to a JaCoCo XML report for `koverGateReport` to consume, bypassing Kover task auto-detection.
+   *
+   * When set, KoverGate reads coverage from this file instead of locating a `koverXmlReport*` task, and the Kover
+   * plugin becomes optional — it need not be applied at all. Use this to gate on a report produced outside Kover, such
+   * as a `JacocoReport` task that merges unit-test and Android instrumented-test execution data into one report.
+   *
+   * Wire it from the producing task so Gradle infers the task dependency automatically. Use `map {}` on the
+   * `TaskProvider` rather than `flatMap { it.reports.xml.outputLocation }` — the latter triggers a Gradle 9.5
+   * output-property validation error on `DefaultSingleFileReport`:
+   * ```
+   * val mergedCoverage = tasks.register<JacocoReport>("mergedCoverage") { ... }
+   * koverGate {
+   *     xmlReportFile.set(
+   *         mergedCoverage.map { layout.buildDirectory.file("reports/jacoco/mergedCoverage/mergedCoverage.xml").get() }
+   *     )
+   * }
+   * ```
+   *
+   * When left unset (the default), KoverGate falls back to auto-detecting `koverXmlReportJvm` / `koverXmlReport` (or
+   * the task named by [xmlReportTask]) and requires the Kover plugin to be applied.
+   */
+  public val xmlReportFile: RegularFileProperty = objects.fileProperty()
 }

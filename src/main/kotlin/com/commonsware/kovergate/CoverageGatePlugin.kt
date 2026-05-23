@@ -23,9 +23,8 @@ import org.gradle.api.Project
 /** Gradle plugin that configures coverage gate checking against Kover XML reports. */
 public class CoverageGatePlugin : Plugin<Project> {
   /**
-   * Applies the plugin. If the project has subprojects, registers a [KoverGateAggregateReportTask]
-   * to merge all submodule gap reports. Otherwise registers a [KoverGateReportTask] that checks
-   * Kover coverage for this module.
+   * Applies the plugin. If the project has subprojects, registers a [KoverGateAggregateReportTask] to merge all
+   * submodule gap reports. Otherwise registers a [KoverGateReportTask] that checks Kover coverage for this module.
    */
   override fun apply(project: Project) {
     val extension = project.extensions.create("koverGate", CoverageGateExtension::class.java)
@@ -50,12 +49,9 @@ public class CoverageGatePlugin : Plugin<Project> {
     // Collect submodule tasks using a lazy approach
     taskProvider.configure {
       // Use project.provider to lazily evaluate the tasks
-      val subprojectTasks =
-        project.provider {
-          project.subprojects.mapNotNull { sub ->
-            sub.tasks.findByName("koverGateReport")
-          }
-        }
+      val subprojectTasks = project.provider {
+        project.subprojects.mapNotNull { sub -> sub.tasks.findByName("koverGateReport") }
+      }
 
       // Depend on all koverGateReport tasks found in subprojects
       dependsOn(subprojectTasks)
@@ -88,38 +84,43 @@ public class CoverageGatePlugin : Plugin<Project> {
       }
 
     project.afterEvaluate {
-      if (!project.pluginManager.hasPlugin("org.jetbrains.kotlinx.kover")) {
-        throw GradleException(
-          "KoverGate requires the Kover plugin. " +
-            "Apply 'org.jetbrains.kotlinx.kover' before 'com.commonsware.kovergate'."
-        )
-      }
+      if (extension.xmlReportFile.isPresent) {
+        taskProvider.configure { xmlReportFile.set(extension.xmlReportFile) }
+      } else {
+        if (!project.pluginManager.hasPlugin("org.jetbrains.kotlinx.kover")) {
+          throw GradleException(
+            "KoverGate requires the Kover plugin. " +
+              "Apply 'org.jetbrains.kotlinx.kover' before 'com.commonsware.kovergate'."
+          )
+        }
 
-      val koverTask = findKoverTask(project, extension)
+        val koverTask = findKoverTask(project, extension)
 
-      taskProvider.configure {
-        dependsOn(koverTask)
-        xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
+        taskProvider.configure {
+          dependsOn(koverTask)
+          xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
+        }
       }
     }
   }
 
   private fun findKoverTask(project: Project, extension: CoverageGateExtension) =
-    extension.xmlReportTask.get().takeIf { it.isNotBlank() }?.let { customTaskName ->
-      project.tasks.findByName(customTaskName)
-        ?: throw GradleException(
-          "KoverGate: xmlReportTask '$customTaskName' not found in project '${project.path}'. " +
-            "Ensure the task name is correct and the Kover plugin is applied."
-        )
-    }
+    extension.xmlReportTask
+      .get()
+      .takeIf { it.isNotBlank() }
+      ?.let { customTaskName ->
+        project.tasks.findByName(customTaskName)
+          ?: throw GradleException(
+            "KoverGate: xmlReportTask '$customTaskName' not found in project '${project.path}'. " +
+              "Ensure the task name is correct and the Kover plugin is applied."
+          )
+      }
       ?: project.tasks.findByName("koverXmlReportJvm")
       ?: project.tasks.findByName("koverXmlReport")
       ?: run {
         val candidates = project.tasks.names.filter { it.startsWith("koverXmlReport") }.sorted()
         val hint =
-          if (candidates.isNotEmpty())
-            " Available koverXmlReport* tasks: ${candidates.joinToString(", ")}."
-          else ""
+          if (candidates.isNotEmpty()) " Available koverXmlReport* tasks: ${candidates.joinToString(", ")}." else ""
         throw GradleException(
           "KoverGate: Could not find 'koverXmlReportJvm' or 'koverXmlReport'. " +
             "For Android projects, specify the variant task in the koverGate {} block " +

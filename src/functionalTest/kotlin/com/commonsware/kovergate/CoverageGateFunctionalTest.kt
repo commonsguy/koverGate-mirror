@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
-@Suppress("FunctionNaming", "TooManyFunctions")
+@Suppress("FunctionNaming", "TooManyFunctions", "MagicNumber")
 class CoverageGateFunctionalTest {
 
   @TempDir lateinit var projectDir: File
@@ -118,6 +118,34 @@ class CoverageGateFunctionalTest {
             .trimIndent()
         )
     }
+  }
+
+  private fun writeJacocoXmlFile(relativePath: String) {
+    val xmlFile = File(projectDir, relativePath)
+
+    xmlFile.parentFile.mkdirs()
+    xmlFile.writeText(
+      """
+      <?xml version="1.0" encoding="UTF-8"?>
+      <report name="merged">
+        <package name="com/example">
+          <sourcefile name="Calculator.kt">
+            <line nr="3" mi="0" ci="3" mb="0" cb="0"/>
+            <line nr="4" mi="3" ci="0" mb="0" cb="0"/>
+            <counter type="LINE" missed="1" covered="1"/>
+            <counter type="METHOD" missed="1" covered="1"/>
+            <counter type="CLASS" missed="0" covered="1"/>
+            <counter type="INSTRUCTION" missed="3" covered="3"/>
+          </sourcefile>
+        </package>
+        <counter type="LINE" missed="1" covered="1"/>
+        <counter type="METHOD" missed="1" covered="1"/>
+        <counter type="CLASS" missed="0" covered="1"/>
+        <counter type="INSTRUCTION" missed="3" covered="3"/>
+      </report>
+      """
+        .trimIndent()
+    )
   }
 
   private fun runner(vararg args: String): GradleRunner =
@@ -378,6 +406,92 @@ class CoverageGateFunctionalTest {
     assertTrue(result.output.contains("Coverage gate PASSED"))
   }
 
+  @Test
+  fun `xmlReportFile override is consumed without Kover applied`() {
+    writeSettingsFile()
+    File(projectDir, "build.gradle.kts")
+      .writeText(
+        """
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("com.commonsware.kovergate")
+        }
+        repositories { mavenCentral() }
+        koverGate {
+            minLineCoverage.set(50)
+            minBranchCoverage.set(50)
+            minInstructionCoverage.set(50)
+            minMethodCoverage.set(50)
+            minClassCoverage.set(50)
+            xmlReportFile.set(layout.projectDirectory.file("external/jacoco.xml"))
+        }
+        """
+          .trimIndent()
+      )
+    writeJacocoXmlFile("external/jacoco.xml")
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+
+    val report = Json.decodeFromString<GapReport>(File(projectDir, "build/reports/kover/gap-report.json").readText())
+
+    assertTrue(report.files.any { it.name == "Calculator.kt" && it.uncoveredLines.contains(4) })
+  }
+
+  @Test
+  fun `xmlReportFile override does not raise the Kover-required error`() {
+    writeSettingsFile()
+    File(projectDir, "build.gradle.kts")
+      .writeText(
+        """
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("com.commonsware.kovergate")
+        }
+        repositories { mavenCentral() }
+        koverGate { xmlReportFile.set(layout.projectDirectory.file("external/jacoco.xml")) }
+        """
+          .trimIndent()
+      )
+    writeJacocoXmlFile("external/jacoco.xml")
+
+    val result = runner("tasks").build()
+
+    assertFalse(result.output.contains("KoverGate requires the Kover plugin"))
+  }
+
+  @Test
+  fun `xmlReportFile wired from a producing task carries an implicit dependency`() {
+    writeSettingsFile()
+    File(projectDir, "build.gradle.kts")
+      .writeText(
+        """
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("com.commonsware.kovergate")
+        }
+        repositories { mavenCentral() }
+        abstract class MakeReport : DefaultTask() {
+            @get:org.gradle.api.tasks.OutputFile abstract val out: org.gradle.api.file.RegularFileProperty
+            @org.gradle.api.tasks.TaskAction fun run() {
+                out.get().asFile.writeText(${'"'}""<?xml version="1.0"?><report name="m"><counter type="LINE" missed="0" covered="1"/><counter type="METHOD" missed="0" covered="1"/><counter type="CLASS" missed="0" covered="1"/><counter type="INSTRUCTION" missed="0" covered="1"/></report>""${'"'})
+            }
+        }
+        val makeReport = tasks.register<MakeReport>("makeReport") {
+            out.set(layout.buildDirectory.file("generated/jacoco.xml"))
+        }
+        koverGate { xmlReportFile.set(makeReport.flatMap { it.out }) }
+        """
+          .trimIndent()
+      )
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":makeReport")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+  }
+
   // ── Multi-module helpers ──────────────────────────────────────────────────
 
   private fun writeMultiModuleSettingsFile() {
@@ -547,10 +661,7 @@ class CoverageGateFunctionalTest {
     assertTrue(aggregate.passed)
     val moduleBReport = aggregate.modules.first { it.module == ":moduleB" }
 
-    assertTrue(
-      moduleBReport.files.isNotEmpty(),
-      "moduleB should have gap files even though thresholds are lowered",
-    )
+    assertTrue(moduleBReport.files.isNotEmpty(), "moduleB should have gap files even though thresholds are lowered")
   }
 
   @Test
@@ -569,9 +680,6 @@ class CoverageGateFunctionalTest {
 
     val aggregateFile = File(projectDir, "build/reports/kover/gap-report.json")
 
-    assertFalse(
-      aggregateFile.exists(),
-      "Aggregate report must not be generated when a submodule fails",
-    )
+    assertFalse(aggregateFile.exists(), "Aggregate report must not be generated when a submodule fails")
   }
 }

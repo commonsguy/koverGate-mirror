@@ -14,5 +14,3 @@ pluginManagement {
 }
 
 rootProject.name = "kovergate"
-
-// include(":sample")

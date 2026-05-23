@@ -58,4 +58,9 @@ class CoverageGateExtensionTest {
   fun `prettyPrintJson defaults to false`() {
     assertFalse(ext.prettyPrintJson.get())
   }
+
+  @Test
+  fun `xmlReportFile is absent by default`() {
+    assertFalse(ext.xmlReportFile.isPresent)
+  }
 }

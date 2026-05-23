@@ -38,15 +38,9 @@ import org.gradle.api.tasks.TaskAction
  * @param prettyPrint whether to format the JSON with indentation
  * @return serialized [AggregateGapReport] JSON string
  */
-internal fun buildAggregateJsonOutput(
-  modules: List<GapReport>,
-  prettyPrint: Boolean = false,
-): String {
+internal fun buildAggregateJsonOutput(modules: List<GapReport>, prettyPrint: Boolean = false): String {
   val json = Json { this.prettyPrint = prettyPrint }
-  val aggregate = AggregateGapReport(
-    passed = modules.all { it.passed },
-    modules = modules,
-  )
+  val aggregate = AggregateGapReport(passed = modules.all { it.passed }, modules = modules)
 
   return json.encodeToString<AggregateGapReport>(aggregate)
 }
@@ -54,16 +48,12 @@ internal fun buildAggregateJsonOutput(
 /**
  * Gradle task that aggregates per-submodule gap-report.json files into a single root-level report.
  *
- * Registered by [CoverageGatePlugin] when applied to a project that has subprojects. Reads each
- * submodule's gap report, merges them into an [AggregateGapReport], and writes it to
- * `build/reports/kover/gap-report.json` at the root.
+ * Registered by [CoverageGatePlugin] when applied to a project that has subprojects. Reads each submodule's gap report,
+ * merges them into an [AggregateGapReport], and writes it to `build/reports/kover/gap-report.json` at the root.
  */
 @CacheableTask
 public abstract class KoverGateAggregateReportTask : DefaultTask() {
-  /**
-   * Per-submodule gap report JSON files, collected from each submodule's [KoverGateReportTask]
-   * output.
-   */
+  /** Per-submodule gap report JSON files, collected from each submodule's [KoverGateReportTask] output. */
   @get:InputFiles
   @get:PathSensitive(PathSensitivity.RELATIVE)
   public abstract val inputJsonFiles: ConfigurableFileCollection
@@ -75,8 +65,7 @@ public abstract class KoverGateAggregateReportTask : DefaultTask() {
   @get:OutputFile public abstract val jsonReportFile: RegularFileProperty
 
   /**
-   * Gradle project path (e.g., `:`), set by the plugin from [org.gradle.api.Project.getPath]. Used
-   * in console output.
+   * Gradle project path (e.g., `:`), set by the plugin from [org.gradle.api.Project.getPath]. Used in console output.
    */
   @get:Internal public abstract val projectPath: Property<String>
 
@@ -98,8 +87,6 @@ public abstract class KoverGateAggregateReportTask : DefaultTask() {
     val status = if (modules.all { it.passed }) "PASSED" else "FAILED"
     val moduleWord = if (modules.size == 1) "module" else "modules"
 
-    logger.lifecycle(
-      "Aggregate coverage gate $status for ${projectPath.get()} (${modules.size} $moduleWord)"
-    )
+    logger.lifecycle("Aggregate coverage gate $status for ${projectPath.get()} (${modules.size} $moduleWord)")
   }
 }
