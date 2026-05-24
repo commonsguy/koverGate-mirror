@@ -37,6 +37,19 @@ class CoverageGatePluginTest {
   }
 
   @Test
+  fun `plugin registers koverGateGenerateReport task`() {
+    val project = ProjectBuilder.builder().build()
+
+    project.pluginManager.apply("org.jetbrains.kotlinx.kover")
+    project.pluginManager.apply("com.commonsware.kovergate")
+
+    val task = project.tasks.findByName("koverGateGenerateReport")
+
+    assertNotNull(task)
+    assertTrue(task is KoverGateReportTask)
+  }
+
+  @Test
   fun `plugin registers koverGateReport task`() {
     val project = ProjectBuilder.builder().build()
 
@@ -46,7 +59,7 @@ class CoverageGatePluginTest {
     val task = project.tasks.findByName("koverGateReport")
 
     assertNotNull(task)
-    assertTrue(task is KoverGateReportTask)
+    assertTrue(task is KoverGateCheckTask)
   }
 
   @Test
@@ -62,13 +75,13 @@ class CoverageGatePluginTest {
   }
 
   @Test
-  fun `extension defaults are wired to task`() {
+  fun `extension defaults are wired to generate task`() {
     val project = ProjectBuilder.builder().build()
 
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
     project.pluginManager.apply("com.commonsware.kovergate")
 
-    val task = project.tasks.getByName("koverGateReport") as KoverGateReportTask
+    val task = project.tasks.getByName("koverGateGenerateReport") as KoverGateReportTask
 
     assertEquals(100, task.minLineCoverage.get())
     assertEquals(100, task.minBranchCoverage.get())
@@ -77,7 +90,7 @@ class CoverageGatePluginTest {
   }
 
   @Test
-  fun `prettyPrintJson DSL change propagates to task`() {
+  fun `prettyPrintJson DSL change propagates to generate task`() {
     val project = ProjectBuilder.builder().build()
 
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
@@ -85,13 +98,13 @@ class CoverageGatePluginTest {
 
     project.extensions.getByType(CoverageGateExtension::class.java).prettyPrintJson.set(true)
 
-    val task = project.tasks.getByName("koverGateReport") as KoverGateReportTask
+    val task = project.tasks.getByName("koverGateGenerateReport") as KoverGateReportTask
 
     assertTrue(task.prettyPrintJson.get())
   }
 
   @Test
-  fun `DSL changes propagate to task`() {
+  fun `DSL changes propagate to generate task`() {
     val project = ProjectBuilder.builder().build()
 
     project.pluginManager.apply("org.jetbrains.kotlinx.kover")
@@ -102,7 +115,7 @@ class CoverageGatePluginTest {
       disabledMetrics.set(setOf(CoverageMetric.INSTRUCTION))
     }
 
-    val task = project.tasks.getByName("koverGateReport") as KoverGateReportTask
+    val task = project.tasks.getByName("koverGateGenerateReport") as KoverGateReportTask
 
     assertEquals(80, task.minLineCoverage.get())
     assertEquals(setOf(CoverageMetric.INSTRUCTION), task.disabledMetrics.get())

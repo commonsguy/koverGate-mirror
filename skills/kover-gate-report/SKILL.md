@@ -204,7 +204,7 @@ When you only need to cover the lines **you changed on the current branch**, use
    ```bash
    ./gradlew :<module-name>:koverGateScopedReport
    ```
-   This automatically runs `koverGateReport` first, then filters its output to only the lines changed on the current branch relative to `main`. Committed **and** uncommitted tracked changes are included.
+   This automatically runs `koverGateGenerateReport` first (which parses the Kover XML and writes the gap report JSON without gating the build), then filters its output to only the lines changed on the current branch relative to `main`. Committed **and** uncommitted tracked changes are included. Because it does not depend on `koverGateReport`, it always runs — even when coverage is below threshold.
 
 2. **Read the scoped JSON report:**
    ```
@@ -218,7 +218,7 @@ When you only need to cover the lines **you changed on the current branch**, use
 
 4. **Write targeted tests** for the listed lines, re-run, and repeat until `passed: true`.
 
-> **Note:** `koverGateScopedReport` does **not** fail the build on gaps. It is a reporting task only. The build gate remains `koverGateReport`.
+> **Note:** `koverGateScopedReport` is a reporting task that does not fail the build on gaps. Because it depends on `koverGateGenerateReport` (not on `koverGateReport`), it always completes — even when overall coverage is below threshold. The build gate remains `koverGateReport`.
 
 **Override the base ref** if your branch diverges from something other than `main`:
 ```bash

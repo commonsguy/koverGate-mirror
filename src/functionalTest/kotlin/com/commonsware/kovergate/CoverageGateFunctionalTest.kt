@@ -17,18 +17,20 @@
 package com.commonsware.kovergate
 
 import java.io.File
+import java.lang.ProcessBuilder
 import kotlinx.serialization.json.Json
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotEquals
+import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 
-@Suppress("FunctionNaming", "TooManyFunctions", "MagicNumber")
+@Suppress("FunctionNaming", "TooManyFunctions", "MagicNumber", "LargeClass")
 class CoverageGateFunctionalTest {
 
   @TempDir lateinit var projectDir: File
@@ -150,6 +152,14 @@ class CoverageGateFunctionalTest {
 
   private fun runner(vararg args: String): GradleRunner =
     GradleRunner.create().withProjectDir(projectDir).withArguments(*args, "--stacktrace").withPluginClasspath()
+
+  private fun initGitRepo() {
+    ProcessBuilder("git", "init").directory(projectDir).start().waitFor()
+    ProcessBuilder("git", "config", "user.email", "test@example.com").directory(projectDir).start().waitFor()
+    ProcessBuilder("git", "config", "user.name", "Test User").directory(projectDir).start().waitFor()
+    ProcessBuilder("git", "add", ".").directory(projectDir).start().waitFor()
+    ProcessBuilder("git", "commit", "-m", "initial").directory(projectDir).start().waitFor()
+  }
 
   @Test
   fun `full coverage passes the gate`() {
@@ -681,6 +691,20 @@ class CoverageGateFunctionalTest {
     val aggregateFile = File(projectDir, "build/reports/kover/gap-report.json")
 
     assertFalse(aggregateFile.exists(), "Aggregate report must not be generated when a submodule fails")
+  }
+
+  @Test
+  fun `koverGateScopedReport succeeds even when coverage is below threshold`() {
+    writeSettingsFile()
+    writeBuildFile()
+    writeSourceFile(covered = false)
+    initGitRepo()
+
+    val result = runner("koverGateScopedReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateScopedReport")?.outcome)
+    assertNotNull(result.task(":koverGateGenerateReport"), "koverGateGenerateReport must have run")
+    assertNull(result.task(":koverGateReport"), "Gate task must not run when only scoped report is requested")
   }
 
   @Test

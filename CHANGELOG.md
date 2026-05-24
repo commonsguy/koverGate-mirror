@@ -9,9 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `koverGateGenerateReport` task (leaf modules): parses Kover XML and writes the gap report JSON
+  without gating the build. `koverGateReport` now depends on it as a thin gate step.
 - KoverGate now automatically disables the Gradle `jacoco` plugin's instrumentation of `Test` tasks
   when `kover { useJacoco() }` is detected. The manual `tasks.withType<Test>().configureEach { ... }`
   workaround documented in the Scenario 2 setup is no longer required.
+
+### Changed
+
+- `koverGateScopedReport` now depends on `koverGateGenerateReport` instead of `koverGateReport`.
+  Running `koverGateScopedReport` no longer requires `--continue` when coverage is below threshold —
+  the scoped report is always reachable.
 
 ## [0.3.0-alpha01] - 2026-05-24
 

@@ -255,9 +255,5 @@ public abstract class KoverGateReportTask : DefaultTask() {
     val summary = buildConsoleOutput(projectPath.get(), metricResults, filesWithGaps, overallPassed)
 
     logger.lifecycle(summary)
-
-    if (!overallPassed) {
-      throw GradleException(summary)
-    }
   }
 }

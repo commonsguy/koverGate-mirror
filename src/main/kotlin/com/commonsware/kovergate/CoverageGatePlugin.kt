@@ -62,7 +62,7 @@ public class CoverageGatePlugin : Plugin<Project> {
       inputJsonFiles.from(
         project.provider {
           project.subprojects.mapNotNull { sub ->
-            (sub.tasks.findByName("koverGateReport") as? KoverGateReportTask)?.jsonReportFile?.asFile?.orNull
+            (sub.tasks.findByName("koverGateGenerateReport") as? KoverGateReportTask)?.jsonReportFile?.asFile?.orNull
           }
         }
       )
@@ -97,10 +97,10 @@ public class CoverageGatePlugin : Plugin<Project> {
   }
 
   private fun applyAsLeaf(project: Project, extension: CoverageGateExtension) {
-    val taskProvider =
-      project.tasks.register("koverGateReport", KoverGateReportTask::class.java) {
+    val generateTaskProvider =
+      project.tasks.register("koverGateGenerateReport", KoverGateReportTask::class.java) {
         group = "verification"
-        description = "Checks Kover coverage against configured thresholds and reports gaps"
+        description = "Parses Kover XML coverage and writes the gap report JSON"
         projectPath.set(project.path)
         minLineCoverage.set(extension.minLineCoverage)
         minBranchCoverage.set(extension.minBranchCoverage)
@@ -112,8 +112,47 @@ public class CoverageGatePlugin : Plugin<Project> {
         jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
       }
 
-    val gapReportProvider = taskProvider.flatMap { it.jsonReportFile }
+    val gapReportProvider = generateTaskProvider.flatMap { it.jsonReportFile }
 
+    project.tasks.register("koverGateReport", KoverGateCheckTask::class.java) {
+      group = "verification"
+      description = "Fails the build if the gap report shows any unmet coverage threshold"
+      projectPath.set(project.path)
+      gapReportFile.set(gapReportProvider)
+      gateStampFile.set(project.layout.buildDirectory.file("reports/kover/gate-stamp.txt"))
+      dependsOn(generateTaskProvider)
+    }
+
+    registerScopedReport(project, extension, gapReportProvider, generateTaskProvider)
+
+    project.afterEvaluate {
+      autoDisableJacocoIfNeeded(project)
+      if (extension.xmlReportFile.isPresent) {
+        generateTaskProvider.configure { xmlReportFile.set(extension.xmlReportFile) }
+      } else {
+        if (!project.pluginManager.hasPlugin("org.jetbrains.kotlinx.kover")) {
+          throw GradleException(
+            "KoverGate requires the Kover plugin. " +
+              "Apply 'org.jetbrains.kotlinx.kover' before 'com.commonsware.kovergate'."
+          )
+        }
+
+        val koverTask = findKoverTask(project, extension)
+
+        generateTaskProvider.configure {
+          dependsOn(koverTask)
+          xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
+        }
+      }
+    }
+  }
+
+  private fun registerScopedReport(
+    project: Project,
+    extension: CoverageGateExtension,
+    gapReportProvider: org.gradle.api.provider.Provider<org.gradle.api.file.RegularFile>,
+    generateTaskProvider: org.gradle.api.tasks.TaskProvider<KoverGateReportTask>,
+  ) {
     val scopedTaskProvider =
       project.tasks.register("koverGateScopedReport", KoverGateScopedReportTask::class.java) {
         group = "verification"
@@ -125,7 +164,7 @@ public class CoverageGatePlugin : Plugin<Project> {
         gapReportFile.set(gapReportProvider)
         scopedReportFile.set(project.layout.buildDirectory.file("reports/kover/scoped-gap-report.json"))
         sourceRoots.from(mainSourceRoots(project))
-        dependsOn(taskProvider)
+        dependsOn(generateTaskProvider)
       }
 
     scopedTaskProvider.configure {
@@ -135,27 +174,6 @@ public class CoverageGatePlugin : Plugin<Project> {
           parameters.baseRef.set(baseRef)
         }
       )
-    }
-
-    project.afterEvaluate {
-      autoDisableJacocoIfNeeded(project)
-      if (extension.xmlReportFile.isPresent) {
-        taskProvider.configure { xmlReportFile.set(extension.xmlReportFile) }
-      } else {
-        if (!project.pluginManager.hasPlugin("org.jetbrains.kotlinx.kover")) {
-          throw GradleException(
-            "KoverGate requires the Kover plugin. " +
-              "Apply 'org.jetbrains.kotlinx.kover' before 'com.commonsware.kovergate'."
-          )
-        }
-
-        val koverTask = findKoverTask(project, extension)
-
-        taskProvider.configure {
-          dependsOn(koverTask)
-          xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
-        }
-      }
     }
   }
 
