@@ -17,7 +17,7 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
 }
 ```
 
@@ -111,7 +111,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
 }
 
 koverGate {
@@ -128,7 +128,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
     jacoco
 }
 
@@ -180,7 +180,7 @@ When Kover is not applied at all, the Gradle `jacoco` plugin handles unit-test e
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
     jacoco
 }
 
@@ -224,7 +224,7 @@ For multi-module builds, apply the plugin to the root project as well as each su
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
 }
 ```
 
@@ -232,7 +232,7 @@ plugins {
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
 }
 ```
 

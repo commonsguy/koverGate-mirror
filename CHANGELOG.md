@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-24
+
 ### Added
 
+- `koverGateScopedReport` task that emits a gap report filtered to a selectable scope. The initial `branch` scope keeps only uncovered/missed-branch lines changed on the current branch relative to a base ref — diffing the working tree against the merge-base, so committed *and* uncommitted changes are included. Base ref defaults to `main` (override with `--base` per module or `-PkoverGateBase=<ref>` across a multi-module build). Applying the plugin to the root project also aggregates submodule scoped reports into one `AggregateGapReport`. Output is the standard gap-report shape with `metrics` omitted and `passed` true only when no in-scope gaps remain, written to `build/reports/kover/scoped-gap-report.json`.
+- `xmlReportFile` DSL property in the `koverGate {}` block for gating on an externally produced JaCoCo XML (e.g. a `JacocoReport` task that merges unit-test and Android instrumented-test execution data). When set, the Kover plugin is optional — it need not be applied at all.
 - `koverGateGenerateReport` task (leaf modules): parses Kover XML and writes the gap report JSON
   without gating the build. `koverGateReport` now depends on it as a thin gate step.
 - KoverGate now automatically disables the Gradle `jacoco` plugin's instrumentation of `Test` tasks
@@ -20,13 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `koverGateScopedReport` now depends on `koverGateGenerateReport` instead of `koverGateReport`.
   Running `koverGateScopedReport` no longer requires `--continue` when coverage is below threshold —
   the scoped report is always reachable.
-
-## [0.3.0-alpha01] - 2026-05-24
-
-### Added
-
-- `koverGateScopedReport` task that emits a gap report filtered to a selectable scope. The initial `branch` scope keeps only uncovered/missed-branch lines changed on the current branch relative to a base ref — diffing the working tree against the merge-base, so committed *and* uncommitted changes are included. Base ref defaults to `main` (override with `--base` per module or `-PkoverGateBase=<ref>` across a multi-module build). Applying the plugin to the root project also aggregates submodule scoped reports into one `AggregateGapReport`. Output is the standard gap-report shape with `metrics` omitted and `passed` true only when no in-scope gaps remain, written to `build/reports/kover/scoped-gap-report.json`.
-- `xmlReportFile` DSL property in the `koverGate {}` block for gating on an externally produced JaCoCo XML (e.g. a `JacocoReport` task that merges unit-test and Android instrumented-test execution data). When set, the Kover plugin is optional — it need not be applied at all.
 
 ## [0.2.0] - 2026-05-03
 
@@ -75,8 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
-[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.3.0-alpha01...HEAD
-[0.3.0-alpha01]: https://codeberg.org/commonsguy/koverGate/compare/0.2.0...0.3.0-alpha01
+[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.3.0...HEAD
+[0.3.0]: https://codeberg.org/commonsguy/koverGate/compare/0.2.0...0.3.0
 [0.2.0]: https://codeberg.org/commonsguy/koverGate/compare/0.1.3...0.2.0
 [0.1.3]: https://codeberg.org/commonsguy/koverGate/compare/0.1.2...0.1.3
 [0.1.2]: https://codeberg.org/commonsguy/koverGate/compare/0.1.1...0.1.2

@@ -83,7 +83,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
     jacoco
 }
 
@@ -136,7 +136,7 @@ instrumented-test exec:
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    id("com.commonsware.kovergate") version "0.3.0"
     jacoco
 }
 
@@ -306,3 +306,30 @@ See the **Scoped Report** section above for full usage.
 Allows gating on an externally produced JaCoCo XML report (e.g. from a `JacocoReport` merge task) instead of a Kover-generated report. When set, the Kover plugin is optional. See **Merged Unit + Instrumented Coverage (Android)** above for setup.
 
 To upgrade: bump the plugin version to `0.3.0-alpha01` in every module and the root project (if applicable). No other changes are required unless you want to opt in to the new features.
+
+## Upgrade Guide: Split Generate/Gate Tasks (0.3.0-alpha01 → 0.3.0)
+
+0.3.0 adds two behaviour changes that improve developer experience. No breaking changes; existing configuration continues to work without modification.
+
+### New: `koverGateGenerateReport` task
+
+Leaf modules now expose a `koverGateGenerateReport` task that parses the Kover XML and writes the gap report JSON **without failing the build**. The existing `koverGateReport` task is now a thin gate that reads the JSON produced by `koverGateGenerateReport` and fails the build only when `passed == false`.
+
+The `koverGateGenerateReport` task name is the one to reference in your own task wiring if you need the JSON without triggering the gate (for example, when passing it to an external reporting tool).
+
+### Changed: `koverGateScopedReport` dependency
+
+`koverGateScopedReport` now depends on `koverGateGenerateReport` (the pure JSON writer) instead of `koverGateReport` (the gate). This means running `koverGateScopedReport` **always succeeds** — even when overall coverage is below threshold — without needing `--continue`.
+
+### New: Auto-disable of Gradle jacoco instrumentation
+
+When `kover { useJacoco() }` is detected, KoverGate now automatically disables the Gradle `jacoco` plugin's instrumentation on `Test` tasks. The manual workaround block previously shown in the Scenario 2 setup is no longer required:
+
+```kotlin
+// No longer needed in 0.3.0+:
+// tasks.withType<Test>().configureEach {
+//     extensions.getByType(JacocoTaskExtension::class.java).isEnabled = false
+// }
+```
+
+To upgrade: bump the plugin version to `0.3.0` in every module and the root project (if applicable). No other changes are required.
