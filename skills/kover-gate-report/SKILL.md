@@ -73,6 +73,104 @@ the gap report reflects coverage from **both** unit tests (`test/`) and Android 
 (`androidTest/`) combined. The exec data is merged at the JaCoCo execution-data level before the
 XML is produced, so the parser sees a single unified view.
 
+### Scenario 2: Kover + AGP merged (recommended for Android libraries)
+
+Apply Kover with `useJacoco()` so it emits JaCoCo-compatible exec data, then merge with AGP's
+instrumented-test exec using a `JacocoReport` task:
+
+```kotlin
+plugins {
+    id("com.android.library") version "8.11.2"
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlinx.kover") version "0.9.8"
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    jacoco
+}
+
+android {
+    buildTypes {
+        debug {
+            // Kover owns unit-test exec via useJacoco(); AGP owns instrumented-test exec.
+            enableAndroidTestCoverage = true
+        }
+    }
+}
+
+// KoverGate automatically disables Gradle jacoco plugin Test instrumentation
+// when useJacoco() is detected — no manual tasks.withType<Test> block needed.
+kover { useJacoco() }
+
+val mergedCoverage = tasks.register<JacocoReport>("mergedCoverage") {
+    dependsOn("testDebugUnitTest", "createDebugCoverageReport")
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("kover/bin-reports/testDebugUnitTest.exec")          // Kover unit-test exec
+            include("outputs/code_coverage/debugAndroidTest/connected/**/*.ec") // AGP instrumented
+        }
+    )
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    classDirectories.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("**/kotlin-classes/debug/**", "**/javac/debug/**/classes/**")
+            exclude("**/R.class", "**/R\$*.class", "**/BuildConfig.*")
+        }
+    )
+    reports { xml.required.set(true) }
+}
+
+koverGate {
+    // Use map {} on the TaskProvider — flatMap { it.reports.xml.outputLocation } triggers a
+    // Gradle 9.5 validation error on DefaultSingleFileReport; map {} carries the same dependency.
+    xmlReportFile.set(
+        mergedCoverage.map { layout.buildDirectory.file("reports/jacoco/mergedCoverage/mergedCoverage.xml").get() }
+    )
+}
+```
+
+### Scenario 3: AGP-only (no Kover)
+
+When Kover is not applied at all, the Gradle `jacoco` plugin handles unit-test exec and AGP handles
+instrumented-test exec:
+
+```kotlin
+plugins {
+    id("com.android.library") version "8.11.2"
+    id("org.jetbrains.kotlin.android")
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+    jacoco
+}
+
+android {
+    buildTypes {
+        debug { enableAndroidTestCoverage = true }
+    }
+}
+
+val mergedCoverage = tasks.register<JacocoReport>("mergedCoverage") {
+    dependsOn("testDebugUnitTest", "createDebugCoverageReport")
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("jacoco/testDebugUnitTest.exec")                            // Gradle jacoco plugin
+            include("outputs/code_coverage/debugAndroidTest/connected/**/*.ec") // AGP instrumented
+        }
+    )
+    sourceDirectories.setFrom(files("src/main/java", "src/main/kotlin"))
+    classDirectories.setFrom(
+        fileTree(layout.buildDirectory) {
+            include("**/kotlin-classes/debug/**", "**/javac/debug/**/classes/**")
+            exclude("**/R.class", "**/R\$*.class", "**/BuildConfig.*")
+        }
+    )
+    reports { xml.required.set(true) }
+}
+
+koverGate {
+    xmlReportFile.set(
+        mergedCoverage.map { layout.buildDirectory.file("reports/jacoco/mergedCoverage/mergedCoverage.xml").get() }
+    )
+}
+```
+
 **Interpreting gaps in a merged report:**
 
 - A line in `uncoveredLines` means **neither** test type covers it — not just one.

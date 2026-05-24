@@ -682,4 +682,62 @@ class CoverageGateFunctionalTest {
 
     assertFalse(aggregateFile.exists(), "Aggregate report must not be generated when a submodule fails")
   }
+
+  @Test
+  fun `auto-disables jacoco instrumentation when Kover useJacoco() is active`() {
+    writeSettingsFile()
+    File(projectDir, "build.gradle.kts")
+      .writeText(
+        """
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("org.jetbrains.kotlinx.kover") version "0.9.8"
+            id("com.commonsware.kovergate")
+            jacoco
+        }
+        repositories { mavenCentral() }
+        dependencies { testImplementation(kotlin("test")) }
+        tasks.test { useJUnitPlatform() }
+        kover { useJacoco() }
+        koverGate {
+            minLineCoverage.set(0)
+            minBranchCoverage.set(0)
+            minInstructionCoverage.set(0)
+            minMethodCoverage.set(0)
+            minClassCoverage.set(0)
+        }
+        """
+          .trimIndent()
+      )
+    writeSourceFile(covered = true)
+    writeTestFile()
+
+    val result = runner("test", "koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+    assertTrue(
+      result.output.contains("KoverGate: disabled Gradle jacoco instrumentation on Test tasks"),
+      "Expected auto-disable log message. Output:\n${result.output}",
+    )
+  }
+
+  private fun writeTestFile() {
+    val testDir = File(projectDir, "src/test/kotlin/com/example")
+
+    testDir.mkdirs()
+    File(testDir, "CalculatorTest.kt")
+      .writeText(
+        """
+        package com.example
+        import kotlin.test.Test
+        import kotlin.test.assertEquals
+        class CalculatorTest {
+            private val calc = Calculator()
+            @Test fun add() = assertEquals(5, calc.add(2, 3))
+            @Test fun subtract() = assertEquals(1, calc.subtract(3, 2))
+        }
+        """
+          .trimIndent()
+      )
+  }
 }

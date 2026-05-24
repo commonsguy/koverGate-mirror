@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- KoverGate now automatically disables the Gradle `jacoco` plugin's instrumentation of `Test` tasks
+  when `kover { useJacoco() }` is detected. The manual `tasks.withType<Test>().configureEach { ... }`
+  workaround documented in the Scenario 2 setup is no longer required.
+
 ## [0.3.0-alpha01] - 2026-05-24
 
 ### Added

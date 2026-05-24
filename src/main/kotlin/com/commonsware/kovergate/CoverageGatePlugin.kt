@@ -19,6 +19,8 @@ package com.commonsware.kovergate
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.tasks.testing.Test
+import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 /** Gradle plugin that configures coverage gate checking against Kover XML reports. */
 public class CoverageGatePlugin : Plugin<Project> {
@@ -136,6 +138,7 @@ public class CoverageGatePlugin : Plugin<Project> {
     }
 
     project.afterEvaluate {
+      autoDisableJacocoIfNeeded(project)
       if (extension.xmlReportFile.isPresent) {
         taskProvider.configure { xmlReportFile.set(extension.xmlReportFile) }
       } else {
@@ -182,4 +185,54 @@ public class CoverageGatePlugin : Plugin<Project> {
             "(e.g., xmlReportTask.set(\"koverXmlReportDebug\")). $hint"
         )
       }
+
+  /**
+   * Automatically disables the Gradle `jacoco` plugin's instrumentation of [Test] tasks when Kover's `useJacoco` is
+   * active. Without this, both the Kover JaCoCo agent and the Gradle jacoco plugin agent attach to the same [Test]
+   * task, causing a duplicate class definition crash at runtime.
+   *
+   * Only applies when all three conditions are met:
+   * - The Gradle `jacoco` plugin is applied.
+   * - The Kover plugin is applied.
+   * - Kover's `useJacoco` property is `true` (i.e., `kover { useJacoco() }` was called).
+   *
+   * Kover's extension is accessed by name and reflected to read `useJacoco`, so no compile-time or runtime dependency
+   * on the Kover plugin JAR is required.
+   *
+   * @param project the Gradle project to inspect and configure
+   */
+  private fun autoDisableJacocoIfNeeded(project: Project) {
+    if (!project.pluginManager.hasPlugin("jacoco")) return
+
+    if (!isKoverUseJacocoEnabled(project)) return
+
+    project.tasks.withType(Test::class.java).configureEach {
+      extensions.getByType(JacocoTaskExtension::class.java).isEnabled = false
+    }
+    project.logger.lifecycle(
+      "KoverGate: disabled Gradle jacoco instrumentation on Test tasks (Kover useJacoco() detected)"
+    )
+  }
+
+  /**
+   * Returns `true` if the Kover plugin is applied and its `useJacoco` property is `true`.
+   *
+   * Uses reflection to avoid a compile-time or runtime dependency on the Kover plugin JAR — Kover's classloader may be
+   * separate from KoverGate's in some Gradle configurations.
+   *
+   * @param project the Gradle project to inspect
+   * @return `true` if Kover is applied and JaCoCo mode is enabled, `false` otherwise
+   */
+  private fun isKoverUseJacocoEnabled(project: Project): Boolean {
+    val koverExt = project.extensions.findByName("kover") ?: return false
+
+    return try {
+      val useJacocoProperty = koverExt.javaClass.getMethod("getUseJacoco").invoke(koverExt)
+      val getOrElse = useJacocoProperty.javaClass.getMethod("getOrElse", Any::class.java)
+
+      getOrElse.invoke(useJacocoProperty, false) as Boolean
+    } catch (_: Exception) {
+      false
+    }
+  }
 }

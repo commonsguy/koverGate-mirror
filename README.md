@@ -141,13 +141,8 @@ android {
     }
 }
 
-// Prevent the Gradle jacoco plugin from also instrumenting test tasks —
-// Kover's useJacoco() already does this. Without this, two JaCoCo agents
-// attach to testDebugUnitTest and crash with a duplicate class definition.
-tasks.withType<Test>().configureEach {
-    extensions.getByType<org.gradle.testing.jacoco.plugins.JacocoTaskExtension>().isEnabled = false
-}
-
+// KoverGate automatically disables Gradle jacoco plugin Test instrumentation
+// when useJacoco() is detected — no manual tasks.withType<Test> block needed.
 kover { useJacoco() }
 
 val mergedCoverage = tasks.register<JacocoReport>("mergedCoverage") {
