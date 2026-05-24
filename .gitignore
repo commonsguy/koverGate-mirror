@@ -10,3 +10,4 @@ build/
 /gradlew
 /gradlew.bat
 .ai-jail
+/.kotlin/

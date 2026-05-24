@@ -8,7 +8,7 @@ When the `koverGateReport` task runs, it reads Kover's XML coverage report, chec
 
 - Gradle 8+
 - Kotlin DSL (`build.gradle.kts`)
-- [Kover Gradle plugin](https://github.com/Kotlin/kotlinx-kover) applied to the same module
+- [Kover Gradle plugin](https://github.com/Kotlin/kotlinx-kover) applied to the same module (optional when using `xmlReportFile` — see [Android: Merging Unit + Instrumented Coverage](#android-merging-unit--instrumented-coverage))
 
 ## Adding the Plugin
 
@@ -17,7 +17,7 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.2.0"
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
 }
 ```
 
@@ -34,12 +34,25 @@ pluginManagement {
 
 ## Configuring the Plugin
 
-Add a `koverGate` block to your module's `build.gradle.kts`. All properties are optional; the defaults enforce 100% coverage on every metric.
+All `koverGate {}` properties are optional. If you are happy with the defaults (100% coverage on every metric), you can skip the `koverGate {}` block entirely. The defaults are:
 
 ```kotlin
 koverGate {
-    // Minimum percentage (0–100) required for each metric.
-    // Defaults to 100 for all metrics.
+    minLineCoverage.set(100)
+    minBranchCoverage.set(100)
+    minInstructionCoverage.set(100)
+    minMethodCoverage.set(100)
+    minClassCoverage.set(100)
+    disabledMetrics.set(emptySet())
+    prettyPrintJson.set(false)
+}
+```
+
+To lower a threshold, disable a metric, or change the report format, set only the properties you want to override:
+
+```kotlin
+koverGate {
+    // Lower thresholds for modules where 100% is not the right target.
     minLineCoverage.set(90)
     minBranchCoverage.set(80)
     minInstructionCoverage.set(90)
@@ -51,7 +64,6 @@ koverGate {
     disabledMetrics.set(setOf(CoverageMetric.BRANCH))
 
     // Pretty-print the JSON gap report (useful for debugging).
-    // Defaults to false.
     prettyPrintJson.set(true)
 
     // Kover XML report task to wire to. Required for Android projects — see below.
@@ -59,6 +71,8 @@ koverGate {
     xmlReportTask.set("koverXmlReportDebug")
 }
 ```
+
+If you do not need to change any of the configuration defaults, you can skip the `koverGate {}` call.
 
 ### Available Metrics
 
@@ -88,6 +102,23 @@ Kover alone cannot see coverage from `androidTest/` instrumented tests — it on
 
 KoverGate supports this via the `xmlReportFile` property. When set, KoverGate reads coverage from that file instead of auto-detecting a Kover task, and the Kover plugin becomes fully optional.
 
+#### Scenario 1: Kover only (unit tests)
+
+Kover instruments only JVM-based test tasks. Instrumented tests (`androidTest/`) are not included in coverage. This is the same setup shown above in [Android Projects](#android-projects):
+
+```kotlin
+plugins {
+    id("com.android.library") version "8.11.2"
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlinx.kover") version "0.9.8"
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
+}
+
+koverGate {
+    xmlReportTask.set("koverXmlReportDebug")
+}
+```
+
 #### Scenario 2: Kover + AGP merged (recommended for Android libraries)
 
 Apply Kover with `useJacoco()` so it emits JaCoCo-compatible exec data, then merge it with AGP's instrumented-test exec using a `JacocoReport` task:
@@ -97,7 +128,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.2.0"
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
     jacoco
 }
 
@@ -154,7 +185,7 @@ When Kover is not applied at all, the Gradle `jacoco` plugin handles unit-test e
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.2.0"
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
     jacoco
 }
 
@@ -198,7 +229,7 @@ For multi-module builds, apply the plugin to the root project as well as each su
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.commonsware.kovergate") version "0.2.0"
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
 }
 ```
 
@@ -206,7 +237,7 @@ plugins {
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.2.0"
+    id("com.commonsware.kovergate") version "0.3.0-alpha01"
 }
 ```
 
@@ -226,27 +257,7 @@ runs every submodule task, then writes an aggregate `build/reports/kover/gap-rep
 
 Individual per-module reports remain at `<module>/build/reports/kover/gap-report.json` regardless of whether the root plugin is applied.
 
-#### Aggregate JSON Structure
-
-```json
-{
-  "passed": true,
-  "modules": [
-    {
-      "module": ":core",
-      "passed": true,
-      "metrics": { "LINE": { "covered": 200, "total": 200, "percent": 100.0, "threshold": 100, "passed": true } },
-      "files": []
-    },
-    {
-      "module": ":app",
-      "passed": true,
-      "metrics": { "LINE": { "covered": 150, "total": 150, "percent": 100.0, "threshold": 100, "passed": true } },
-      "files": []
-    }
-  ]
-}
-```
+Each submodule can use any of the three Android scenarios — Kover-only (Scenario 1), Kover + AGP merged (Scenario 2), or AGP-only (Scenario 3). The root project behavior and aggregate report structure are the same regardless of how individual submodules produce their coverage XML.
 
 ## Running the Task
 
@@ -303,6 +314,113 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
       "package": "com/example",
       "uncoveredLines": [113],
       "missedBranchLines": []
+    }
+  ]
+}
+```
+
+### Aggregate JSON Structure
+
+When the root project plugin is applied, the aggregate report at `build/reports/kover/gap-report.json` wraps each submodule's `GapReport` in a `modules` array:
+
+```json
+{
+  "passed": true,
+  "modules": [
+    {
+      "module": ":core",
+      "passed": true,
+      "metrics": { "LINE": { "covered": 200, "total": 200, "percent": 100.0, "threshold": 100, "passed": true } },
+      "files": []
+    },
+    {
+      "module": ":app",
+      "passed": true,
+      "metrics": { "LINE": { "covered": 150, "total": 150, "percent": 100.0, "threshold": 100, "passed": true } },
+      "files": []
+    }
+  ]
+}
+```
+
+## Scoped Gap Report (Changed Lines)
+
+The `koverGateScopedReport` task filters the gap report to only the lines **changed on the current branch**, so agents and developers can triage coverage gaps without wading through pre-existing ones.
+
+### What It Does
+
+`koverGateScopedReport` depends on `koverGateReport` and reads its `gap-report.json`. It then diffs the working tree against the merge-base of the configured base ref and `HEAD` — capturing committed *and* uncommitted tracked changes — and keeps only the `uncoveredLines` and `missedBranchLines` entries that fall on a changed line. The result is written to `build/reports/kover/scoped-gap-report.json`.
+
+> **Note:** Untracked files (never `git add`-ed) are excluded from the diff. Run `git add` first if you need new files included.
+
+### Running It
+
+**Single module** (base ref defaults to `main`):
+```bash
+./gradlew :your-module:koverGateScopedReport
+```
+
+**Override the base ref** for a module:
+```bash
+./gradlew :your-module:koverGateScopedReport --base=develop
+```
+
+**Multi-module** (use the `-PkoverGateBase` property — `--base` does not propagate across task dependencies):
+```bash
+./gradlew koverGateScopedReport -PkoverGateBase=main
+```
+
+This runs every submodule's `koverGateScopedReport` task and writes an aggregate scoped report at `build/reports/kover/scoped-gap-report.json`.
+
+> **Note:** `koverGateScopedReport` does **not** fail the build on gaps. It is a reporting task only; the build gate remains `koverGateReport`.
+
+### Scoped JSON Output
+
+**Leaf module** (`<module>/build/reports/kover/scoped-gap-report.json`) — same shape as `gap-report.json` but `metrics` is always empty:
+
+```json
+{
+  "module": ":your-module",
+  "passed": false,
+  "metrics": {},
+  "files": [
+    {
+      "name": "Calculator.kt",
+      "package": "com/example",
+      "uncoveredLines": [12],
+      "missedBranchLines": [15]
+    }
+  ]
+}
+```
+
+- `"passed": true` when `files` is empty (no in-scope gaps).
+- `"passed": false` when at least one changed line is uncovered or has a missed branch.
+
+**Root aggregate** (`build/reports/kover/scoped-gap-report.json`) — same shape as the full aggregate:
+
+```json
+{
+  "passed": false,
+  "modules": [
+    {
+      "module": ":core",
+      "passed": true,
+      "metrics": {},
+      "files": []
+    },
+    {
+      "module": ":app",
+      "passed": false,
+      "metrics": {},
+      "files": [
+        {
+          "name": "Calculator.kt",
+          "package": "com/example",
+          "uncoveredLines": [12],
+          "missedBranchLines": []
+        }
+      ]
     }
   ]
 }

@@ -65,6 +65,33 @@ public class CoverageGatePlugin : Plugin<Project> {
         }
       )
     }
+
+    val scopedAggregate =
+      project.tasks.register("koverGateScopedReport", KoverGateAggregateReportTask::class.java) {
+        group = "verification"
+        description = "Aggregates scoped (changed-lines) coverage gap reports from all submodules"
+        projectPath.set(project.path)
+        prettyPrintJson.set(extension.prettyPrintJson)
+        jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/scoped-gap-report.json"))
+      }
+
+    scopedAggregate.configure {
+      val subprojectTasks = project.provider {
+        project.subprojects.mapNotNull { it.tasks.findByName("koverGateScopedReport") }
+      }
+
+      dependsOn(subprojectTasks)
+      inputJsonFiles.from(
+        project.provider<List<java.io.File>> {
+          project.subprojects.mapNotNull { sub ->
+            (sub.tasks.findByName("koverGateScopedReport") as? KoverGateScopedReportTask)
+              ?.scopedReportFile
+              ?.asFile
+              ?.orNull
+          }
+        }
+      )
+    }
   }
 
   private fun applyAsLeaf(project: Project, extension: CoverageGateExtension) {
@@ -82,6 +109,31 @@ public class CoverageGatePlugin : Plugin<Project> {
         prettyPrintJson.set(extension.prettyPrintJson)
         jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
       }
+
+    val gapReportProvider = taskProvider.flatMap { it.jsonReportFile }
+
+    val scopedTaskProvider =
+      project.tasks.register("koverGateScopedReport", KoverGateScopedReportTask::class.java) {
+        group = "verification"
+        description = "Reports coverage gaps filtered to a scope (default: lines changed on the current branch)"
+        projectPath.set(project.path)
+        prettyPrintJson.set(extension.prettyPrintJson)
+        baseRef.convention(project.providers.gradleProperty("koverGateBase").orElse("main"))
+        scope.convention(ScopeType.BRANCH.name.lowercase())
+        gapReportFile.set(gapReportProvider)
+        scopedReportFile.set(project.layout.buildDirectory.file("reports/kover/scoped-gap-report.json"))
+        sourceRoots.from(mainSourceRoots(project))
+        dependsOn(taskProvider)
+      }
+
+    scopedTaskProvider.configure {
+      gitDiff.set(
+        project.providers.of(GitDiffValueSource::class.java) {
+          parameters.projectDirectory.set(project.layout.projectDirectory)
+          parameters.baseRef.set(baseRef)
+        }
+      )
+    }
 
     project.afterEvaluate {
       if (extension.xmlReportFile.isPresent) {
@@ -103,6 +155,9 @@ public class CoverageGatePlugin : Plugin<Project> {
       }
     }
   }
+
+  private fun mainSourceRoots(project: Project): List<java.io.File> =
+    listOf(project.file("src/main/kotlin"), project.file("src/main/java"))
 
   private fun findKoverTask(project: Project, extension: CoverageGateExtension) =
     extension.xmlReportTask

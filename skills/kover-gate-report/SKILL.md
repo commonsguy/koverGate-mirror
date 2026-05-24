@@ -66,25 +66,6 @@ generates an aggregate report that merges all submodule reports.
 
 4. **Fix gaps module by module** using the same process as single-module usage above.
 
-## Upgrade Guide: Adding Root Project Support (0.1.3 → 0.2.0)
-
-Prior to 0.2.0, KoverGate only supported leaf modules and produced no aggregate report at root.
-
-To enable the aggregate report for an existing multi-module project:
-
-1. **Bump the plugin version** in all modules from `0.1.3` to `0.2.0`.
-
-2. **Apply the plugin to the root project.** Add to your root `build.gradle.kts`:
-   ```kotlin
-   plugins {
-       id("com.commonsware.kovergate") version "0.2.0"
-   }
-   ```
-   The root project does **not** need `org.jetbrains.kotlinx.kover` applied.
-
-3. **Run `./gradlew koverGateReport`** from the project root to verify the aggregate report is
-   generated at `build/reports/kover/gap-report.json`.
-
 ## Merged Unit + Instrumented Coverage (Android)
 
 When a module's `koverGate {}` block sets `xmlReportFile` pointing to a `JacocoReport` merge task,
@@ -115,9 +96,115 @@ used to wire `xmlReportFile`. Running `koverGateReport` alone is sufficient — 
 **Kover optional:** when `xmlReportFile` is set, the Kover plugin need not be applied. The AGP-only
 scenario (no Kover, exec from the Gradle `jacoco` plugin + AGP instrumented) is fully supported.
 
+## Scoped Report (Changed Lines Only)
+
+When you only need to cover the lines **you changed on the current branch**, use the scoped report instead of (or after) the full gap report. This is the fastest way for an agent to triage only the code it wrote.
+
+### Single-Module Scoped Workflow
+
+1. **Run the scoped report task:**
+   ```bash
+   ./gradlew :<module-name>:koverGateScopedReport
+   ```
+   This automatically runs `koverGateReport` first, then filters its output to only the lines changed on the current branch relative to `main`. Committed **and** uncommitted tracked changes are included.
+
+2. **Read the scoped JSON report:**
+   ```
+   <module-name>/build/reports/kover/scoped-gap-report.json
+   ```
+   Same shape as `gap-report.json` but `metrics` is empty and `files` contains only entries where at least one changed line is uncovered or has a missed branch.
+
+3. **Interpret results:**
+   - `"passed": true` — no in-scope gaps. The lines you changed are fully covered.
+   - `"passed": false` — examine `files` as usual; only in-scope lines appear.
+
+4. **Write targeted tests** for the listed lines, re-run, and repeat until `passed: true`.
+
+> **Note:** `koverGateScopedReport` does **not** fail the build on gaps. It is a reporting task only. The build gate remains `koverGateReport`.
+
+**Override the base ref** if your branch diverges from something other than `main`:
+```bash
+./gradlew :<module-name>:koverGateScopedReport --base=develop
+```
+
+### Multi-Module Scoped Workflow
+
+```bash
+./gradlew koverGateScopedReport -PkoverGateBase=main
+```
+
+Running at the root runs every submodule's `koverGateScopedReport` task (each diffs against the given base), then writes an aggregate scoped report:
+```
+build/reports/kover/scoped-gap-report.json
+```
+The aggregate is an `AggregateGapReport` with a `modules` array — one `GapReport` per submodule — and a top-level `passed` that is `true` only when every module has no in-scope gaps.
+
+Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is a per-task option and does not propagate to dependency tasks.
+
+### Scoped Report JSON Shape
+
+```json
+{
+  "module": ":your-module",
+  "passed": false,
+  "metrics": {},
+  "files": [
+    {
+      "name": "Calculator.kt",
+      "package": "com/example",
+      "uncoveredLines": [12],
+      "missedBranchLines": [15]
+    }
+  ]
+}
+```
+
+Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear. Lines that were already uncovered before your branch are excluded.
+
+> **Limitation:** Untracked files (brand-new files never added with `git add`) are not scoped in until staged. Run `git add <file>` before the task if you need new files included.
+
 ## Notes
 
 - Adjust thresholds in your module's `build.gradle.kts` via the `koverGate {}` block if 100% is not the right target for a specific metric.
 - Disable metrics that don't apply with `disabledMetrics.set(setOf(CoverageMetric.BRANCH))`.
 - The JSON report is always written (even on pass) at `build/reports/kover/gap-report.json` for each leaf module.
 - The aggregate report at root is only written when all submodule tasks succeed.
+
+## Upgrade Guide: Adding Root Project Support (0.1.3 → 0.2.0)
+
+Prior to 0.2.0, KoverGate only supported leaf modules and produced no aggregate report at root.
+
+To enable the aggregate report for an existing multi-module project:
+
+1. **Bump the plugin version** in all modules from `0.1.3` to `0.2.0`.
+
+2. **Apply the plugin to the root project.** Add to your root `build.gradle.kts`:
+   ```kotlin
+   plugins {
+       id("com.commonsware.kovergate") version "0.2.0"
+   }
+   ```
+   The root project does **not** need `org.jetbrains.kotlinx.kover` applied.
+
+3. **Run `./gradlew koverGateReport`** from the project root to verify the aggregate report is
+   generated at `build/reports/kover/gap-report.json`.
+
+## Upgrade Guide: Scoped Report and JaCoCo Support (0.2.0 → 0.3.0-alpha01)
+
+0.3.0-alpha01 adds two new features. No breaking changes; existing configuration continues to work without modification.
+
+### New: `koverGateScopedReport` task
+
+Available automatically on every module that already applies `com.commonsware.kovergate`. No configuration required to start using it:
+
+```bash
+./gradlew :<module>:koverGateScopedReport
+```
+
+See the **Scoped Report** section above for full usage.
+
+### New: `xmlReportFile` DSL property
+
+Allows gating on an externally produced JaCoCo XML report (e.g. from a `JacocoReport` merge task) instead of a Kover-generated report. When set, the Kover plugin is optional. See **Merged Unit + Instrumented Coverage (Android)** above for setup.
+
+To upgrade: bump the plugin version to `0.3.0-alpha01` in every module and the root project (if applicable). No other changes are required unless you want to opt in to the new features.
