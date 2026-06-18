@@ -333,3 +333,11 @@ When `kover { useJacoco() }` is detected, KoverGate now automatically disables t
 ```
 
 To upgrade: bump the plugin version to `0.3.0` in every module and the root project (if applicable). No other changes are required.
+
+## Attributed coverage (cross-module)
+
+When a module declares `koverGate { attributeCoverageFrom(":other", ...) }`, its gap report already reflects
+`:other`'s tests merged in, and `:other`'s own classes are excluded from this module's report. So a remaining
+gap means *neither* this module's own tests *nor* the attributed module's tests cover that line. Close it by
+adding a test in whichever module is the natural home for exercising that code path — often the conformance /
+acceptance module, not the library module itself.

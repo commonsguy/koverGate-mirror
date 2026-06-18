@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `koverGate { attributeCoverageFrom(":module", excludePackages = listOf(...)) }` attributes another module's
+  test coverage to this module's gate. It wires Kover's cross-module aggregation so the named module's
+  coverage is merged into this module's report, and excludes the named packages (the contributing module's
+  own classes) so they are not judged against this module's thresholds. Useful for conformance/acceptance
+  modules that exercise a library's code. Requires the Kover plugin; creates no dependency cycle; may be
+  called multiple times.
+
 ## [0.3.0] - 2026-05-24
 
 ### Added

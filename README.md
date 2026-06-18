@@ -421,6 +421,41 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
 }
 ```
 
+## Cross-Module Coverage Attribution
+
+Sometimes one module's tests exercise another module's code — the common
+"acceptance / conformance / integration module tests the library" shape. By
+default Kover counts those tests only against the module that *runs* them, so
+the library module's gate sees its own code as uncovered.
+
+`attributeCoverageFrom` makes the library module's gate count the other
+module's coverage:
+
+```kotlin
+// library module's build.gradle.kts
+koverGate {
+    attributeCoverageFrom(
+        ":library-conformance",
+        excludePackages = listOf("com.example.conformance"),
+    )
+}
+```
+
+This wires Kover's cross-module aggregation so `:library-conformance`'s
+coverage is merged into this module's report, and excludes the listed
+packages — the conformance module's *own* classes — so they are not judged
+against this module's thresholds (they have their own gate).
+
+Notes:
+
+- Requires the Kover plugin applied to the module declaring it.
+- No dependency cycle is created even when `:library-conformance` depends on
+  this module: Kover aggregation consumes coverage artifacts, not a
+  compile/runtime dependency.
+- Call it more than once to attribute coverage from several modules.
+- `excludePackages` defaults to empty; omit it only if you want the
+  contributing module's classes counted against this module's gate too.
+
 ## Teaching Your Agent to Use KoverGate
 
 KoverGate ships with a ready-made skill that tells AI coding agents how to run the coverage gate, read the JSON report, and write targeted tests to close the gaps.

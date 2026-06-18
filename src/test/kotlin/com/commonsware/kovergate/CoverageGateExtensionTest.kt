@@ -36,6 +36,24 @@ class CoverageGateExtensionTest {
   }
 
   @Test
+  fun `attributeCoverageFrom records a contribution with its exclude packages`() {
+    ext.attributeCoverageFrom(":consumer", excludePackages = listOf("com.consumer"))
+
+    assertEquals(1, ext.coverageContributions.size)
+    assertEquals(":consumer", ext.coverageContributions.single().modulePath)
+    assertEquals(listOf("com.consumer"), ext.coverageContributions.single().excludePackages)
+  }
+
+  @Test
+  fun `attributeCoverageFrom defaults excludePackages to empty and allows multiple contributors`() {
+    ext.attributeCoverageFrom(":a")
+    ext.attributeCoverageFrom(":b", excludePackages = listOf("com.b"))
+
+    assertEquals(listOf(":a", ":b"), ext.coverageContributions.map { it.modulePath })
+    assertTrue(ext.coverageContributions.first().excludePackages.isEmpty())
+  }
+
+  @Test
   fun `disabledMetrics defaults to empty set`() {
     assertTrue(ext.disabledMetrics.get().isEmpty())
   }

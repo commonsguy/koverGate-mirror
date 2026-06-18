@@ -144,6 +144,8 @@ public class CoverageGatePlugin : Plugin<Project> {
           xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
         }
       }
+
+      applyCoverageContributions(project, extension)
     }
   }
 

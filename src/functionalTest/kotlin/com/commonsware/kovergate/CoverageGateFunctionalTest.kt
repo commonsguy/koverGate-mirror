@@ -398,6 +398,47 @@ class CoverageGateFunctionalTest {
   }
 
   @Test
+  fun `gate re-evaluates coverage when only test code changes under configuration cache`() {
+    writeSettingsFile()
+    writeBuildFile()
+    writeSourceFile(covered = false)
+
+    // First run: subtract() is uncovered, so the gate must fail and write a failing gap report.
+    val first = runner("koverGateReport", "--configuration-cache").buildAndFail()
+
+    assertTrue(first.output.contains("Coverage gate FAILED"), "Expected first run to fail. Output:\n${first.output}")
+
+    // Change ONLY test code so subtract() is now covered; build config is untouched.
+    writeSourceFile(covered = true)
+
+    val second = runner("koverGateReport", "--configuration-cache").build()
+
+    assertEquals(TaskOutcome.SUCCESS, second.task(":koverGateReport")?.outcome)
+
+    val report = Json.decodeFromString<GapReport>(File(projectDir, "build/reports/kover/gap-report.json").readText())
+
+    assertTrue(report.passed, "Expected the second run to re-evaluate to a passing report. Output:\n${second.output}")
+    assertTrue(report.files.isEmpty(), "Expected no remaining gaps; got ${report.files.map { it.name }}")
+  }
+
+  @Test
+  fun `attributeCoverageFrom counts a sibling module's tests and excludes its own classes`() {
+    writeAttributionSettingsFile()
+    writeAttributionProducerModule()
+    writeAttributionConsumerModule()
+
+    val result = runner(":producer:koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":producer:koverGateReport")?.outcome)
+
+    val report =
+      Json.decodeFromString<GapReport>(File(projectDir, "producer/build/reports/kover/gap-report.json").readText())
+
+    assertTrue(report.passed, "Expected producer gate to pass via attributed coverage. Output:\n${result.output}")
+    assertTrue(report.files.isEmpty(), "Expected no gaps after exclusion; got ${report.files.map { it.name }}")
+  }
+
+  @Test
   fun `explicit xmlReportTask override runs successfully`() {
     writeSettingsFile()
     writeBuildFile(
@@ -500,6 +541,122 @@ class CoverageGateFunctionalTest {
 
     assertEquals(TaskOutcome.SUCCESS, result.task(":makeReport")?.outcome)
     assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+  }
+
+  // ── Attribution test helpers ──────────────────────────────────────────────
+
+  private fun writeAttributionSettingsFile() {
+    File(projectDir, "settings.gradle.kts")
+      .writeText(
+        """
+        pluginManagement {
+            repositories {
+                gradlePluginPortal()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "attribution-project"
+        include(":producer", ":consumer")
+        """
+          .trimIndent()
+      )
+  }
+
+  private fun writeAttributionProducerModule() {
+    val producerDir = File(projectDir, "producer")
+
+    File(producerDir, "build.gradle.kts")
+      .apply { parentFile.mkdirs() }
+      .writeText(
+        """
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("org.jetbrains.kotlinx.kover") version "0.9.8"
+            id("com.commonsware.kovergate")
+        }
+        repositories { mavenCentral() }
+        dependencies { testImplementation(kotlin("test")) }
+        tasks.test { useJUnitPlatform() }
+        koverGate {
+            attributeCoverageFrom(":consumer", excludePackages = listOf("com.consumer"))
+        }
+        """
+          .trimIndent()
+      )
+    File(producerDir, "src/main/kotlin/com/producer/Widget.kt")
+      .apply { parentFile.mkdirs() }
+      .writeText(
+        """
+        package com.producer
+        class Widget {
+            fun common(): Int = 1
+            fun special(): Int = 2
+        }
+        """
+          .trimIndent()
+      )
+    File(producerDir, "src/test/kotlin/com/producer/WidgetTest.kt")
+      .apply { parentFile.mkdirs() }
+      .writeText(
+        """
+        package com.producer
+        import kotlin.test.Test
+        import kotlin.test.assertEquals
+        class WidgetTest {
+            @Test fun common() = assertEquals(1, Widget().common())
+        }
+        """
+          .trimIndent()
+      )
+  }
+
+  private fun writeAttributionConsumerModule() {
+    val consumerDir = File(projectDir, "consumer")
+
+    File(consumerDir, "build.gradle.kts")
+      .apply { parentFile.mkdirs() }
+      .writeText(
+        """
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("org.jetbrains.kotlinx.kover") version "0.9.8"
+        }
+        repositories { mavenCentral() }
+        dependencies {
+            implementation(project(":producer"))
+            testImplementation(kotlin("test"))
+        }
+        tasks.test { useJUnitPlatform() }
+        """
+          .trimIndent()
+      )
+    File(consumerDir, "src/main/kotlin/com/consumer/Helper.kt")
+      .apply { parentFile.mkdirs() }
+      .writeText(
+        """
+        package com.consumer
+        class Helper {
+            fun used(): Int = 10
+            fun unused(): Int = 20
+        }
+        """
+          .trimIndent()
+      )
+    File(consumerDir, "src/test/kotlin/com/consumer/ConformanceTest.kt")
+      .apply { parentFile.mkdirs() }
+      .writeText(
+        """
+        package com.consumer
+        import com.producer.Widget
+        import kotlin.test.Test
+        import kotlin.test.assertEquals
+        class ConformanceTest {
+            @Test fun coversProducerSpecial() = assertEquals(2, Widget().special())
+            @Test fun coversHelperUsed() = assertEquals(10, Helper().used())
+        }
+        """
+          .trimIndent()
+      )
   }
 
   // ── Multi-module helpers ──────────────────────────────────────────────────
