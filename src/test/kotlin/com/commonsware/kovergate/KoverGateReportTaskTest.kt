@@ -169,19 +169,52 @@ class KoverGateReportTaskTest {
 
   @Test
   fun `JSON output contains correct module path`() {
-    val report = parseJson(buildJsonOutput(":my-module", true, emptyMap(), emptyList(), false))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":my-module",
+            passed = true,
+            metricResults = emptyMap(),
+            filesWithGaps = emptyList(),
+            prettyPrint = false,
+          )
+        )
+      )
     assertEquals(":my-module", report.module)
   }
 
   @Test
   fun `JSON passed field is true when all pass`() {
-    val report = parseJson(buildJsonOutput(":m", true, emptyMap(), emptyList(), false))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = true,
+            metricResults = emptyMap(),
+            filesWithGaps = emptyList(),
+            prettyPrint = false,
+          )
+        )
+      )
     assertTrue(report.passed)
   }
 
   @Test
   fun `JSON passed field is false when any fail`() {
-    val report = parseJson(buildJsonOutput(":m", false, emptyMap(), emptyList(), false))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = emptyMap(),
+            filesWithGaps = emptyList(),
+            prettyPrint = false,
+          )
+        )
+      )
     assertFalse(report.passed)
   }
 
@@ -191,7 +224,18 @@ class KoverGateReportTaskTest {
       mapOf(
         CoverageMetric.LINE to MetricResult(covered = 161, total = 163, percent = 98.8, threshold = 100, passed = false)
       )
-    val report = parseJson(buildJsonOutput(":m", false, results, emptyList(), false))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = results,
+            filesWithGaps = emptyList(),
+            prettyPrint = false,
+          )
+        )
+      )
     val metric = report.metrics["LINE"]
     assertNotNull(metric)
     assertEquals(161, metric!!.covered)
@@ -204,7 +248,18 @@ class KoverGateReportTaskTest {
   @Test
   fun `JSON files array contains gap files`() {
     val files = listOf(FileCoverage("Foo.kt", "com/example", listOf(45, 47), listOf(45)))
-    val report = parseJson(buildJsonOutput(":m", false, emptyMap(), files, false))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = emptyMap(),
+            filesWithGaps = files,
+            prettyPrint = false,
+          )
+        )
+      )
     assertEquals(1, report.files.size)
     val file = report.files[0]
     assertEquals("Foo.kt", file.name)
@@ -215,7 +270,18 @@ class KoverGateReportTaskTest {
 
   @Test
   fun `JSON files array is empty when no gaps`() {
-    val report = parseJson(buildJsonOutput(":m", true, emptyMap(), emptyList(), false))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = true,
+            metricResults = emptyMap(),
+            filesWithGaps = emptyList(),
+            prettyPrint = false,
+          )
+        )
+      )
     assertTrue(report.files.isEmpty())
   }
 
@@ -226,7 +292,18 @@ class KoverGateReportTaskTest {
         CoverageMetric.LINE to MetricResult(covered = 100, total = 100, percent = 100.0, threshold = 100, passed = true)
         // BRANCH absent — simulates it being disabled
       )
-    val report = parseJson(buildJsonOutput(":m", true, results, emptyList(), false))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = true,
+            metricResults = results,
+            filesWithGaps = emptyList(),
+            prettyPrint = false,
+          )
+        )
+      )
     assertNotNull(report.metrics["LINE"], "Enabled metric must appear in JSON")
     assertNull(report.metrics["BRANCH"], "Disabled metric must not appear in JSON")
   }
@@ -237,7 +314,16 @@ class KoverGateReportTaskTest {
       mapOf(
         CoverageMetric.LINE to MetricResult(covered = 163, total = 163, percent = 100.0, threshold = 100, passed = true)
       )
-    val json = buildJsonOutput(":m", true, results, emptyList(), prettyPrint = true)
+    val json =
+      buildJsonOutput(
+        JsonOutputParams(
+          projectPath = ":m",
+          passed = true,
+          metricResults = results,
+          filesWithGaps = emptyList(),
+          prettyPrint = true,
+        )
+      )
     assertTrue(json.contains("\n"), "Pretty output must contain newlines")
     assertTrue(json.contains("    "), "Pretty output must contain 4-space indentation")
     // Data must be preserved
@@ -252,7 +338,16 @@ class KoverGateReportTaskTest {
       mapOf(
         CoverageMetric.LINE to MetricResult(covered = 163, total = 163, percent = 100.0, threshold = 100, passed = true)
       )
-    val json = buildJsonOutput(":m", true, results, emptyList(), prettyPrint = false)
+    val json =
+      buildJsonOutput(
+        JsonOutputParams(
+          projectPath = ":m",
+          passed = true,
+          metricResults = results,
+          filesWithGaps = emptyList(),
+          prettyPrint = false,
+        )
+      )
     assertFalse(json.contains("\n"), "Compact output must not contain newlines")
     val report = parseJson(json)
     assertEquals(":m", report.module)

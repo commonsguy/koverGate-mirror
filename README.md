@@ -421,6 +421,79 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
 }
 ```
 
+## Report Provenance & Freshness
+
+Every gap report records **where its numbers came from**, so a surprising verdict can be diagnosed at a glance instead of by trial and error.
+
+### The `source` block
+
+`gap-report.json` includes a `source` object:
+
+```json
+{
+  "module": ":your-module",
+  "passed": true,
+  "metrics": {},
+  "files": [],
+  "source": {
+    "xmlPath": "/abs/path/to/build/reports/kover/report.xml",
+    "xmlModified": "2026-06-18T14:03:11Z",
+    "stale": false,
+    "newestBuildScriptModified": "2026-06-17T09:12:44Z"
+  }
+}
+```
+
+- `xmlPath` — the Kover (or JaCoCo) XML the report was computed from.
+- `xmlModified` / `newestBuildScriptModified` — ISO-8601 UTC timestamps.
+- `stale` — `true` when the newest build script is newer than the XML, i.e. the on-disk coverage may predate your current build configuration.
+
+### Freshness warning
+
+When `stale` is `true`, `koverGateGenerateReport` logs a warning (it never fails the build):
+
+```
+KoverGate: coverage report may be STALE.
+  Kover XML: /abs/path/.../report.xml
+  XML modified:          2026-06-18T14:03:11Z
+  Build script modified: 2026-06-19T08:00:00Z
+  The XML predates your build configuration; re-run with --rerun-tasks to regenerate coverage.
+```
+
+This catches the case where a cached or up-to-date Kover XML predates a change to your coverage configuration (for example, adding an `excludes` filter) and would otherwise produce a confident but wrong verdict. The signal is a coarse heuristic — any build-script edit can trigger it — so it is a *warning*, never a gate failure.
+
+> **Why always re-run?** `koverGateGenerateReport` (the cheap XML→JSON step) is intentionally **not cached** and always runs, so the freshness check is re-evaluated on every build. The gate itself (`koverGateReport`) still stays up-to-date when the JSON is unchanged, so this adds no meaningful cost.
+
+### `koverGateDoctor`
+
+For a one-command snapshot of everything that decides a verdict, run:
+
+```bash
+./gradlew :<module>:koverGateDoctor
+```
+
+It prints the configured thresholds (and which metrics are disabled), the Kover XML the gate will read, whether that XML exists and is stale, and the packages excluded via `attributeCoverageFrom` — without running tests or failing the build:
+
+```
+KoverGate doctor for :your-module
+
+Thresholds:
+  LINE: 100% (enabled)
+  BRANCH: 100% (enabled)
+  INSTRUCTION: 100% (enabled)
+  METHOD: 100% (enabled)
+  CLASS: 100% (enabled)
+
+Kover XML: /abs/path/.../report.xml
+  exists: true
+  modified: 2026-06-18T14:03:11Z
+  newest build script: 2026-06-17T09:12:44Z
+  stale: false
+
+Excluded packages (attributeCoverageFrom):
+  (none)
+```
+
 ## Cross-Module Coverage Attribution
 
 Sometimes one module's tests exercise another module's code — the common

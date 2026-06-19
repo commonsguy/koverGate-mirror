@@ -21,10 +21,10 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
-import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
@@ -32,6 +32,7 @@ import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.work.DisableCachingByDefault
 
 // ─── Pure data + functions (unit-testable without Gradle) ──────────────────
 
@@ -126,21 +127,38 @@ internal fun buildConsoleOutput(
 }
 
 /**
+ * Parameters for building JSON output.
+ *
+ * @param projectPath the Gradle project path (e.g., `:app`)
+ * @param passed true if the coverage gate passed overall
+ * @param metricResults computed results for each coverage metric
+ * @param filesWithGaps source files that have uncovered lines or missed branch lines
+ * @param prettyPrint whether to format the JSON output with indentation, defaults to `false`
+ * @param source provenance of the source XML, or null to omit the `source` block from the report
+ */
+internal data class JsonOutputParams(
+  val projectPath: String,
+  val passed: Boolean,
+  val metricResults: Map<CoverageMetric, MetricResult>,
+  val filesWithGaps: List<FileCoverage>,
+  val prettyPrint: Boolean = false,
+  val source: SourceProvenance? = null,
+)
+
+/**
  * Builds a JSON-formatted gap report from coverage results. Converts metrics to MetricJson DTOs and includes only files
  * with gaps.
+ *
+ * @param params the parameters for building JSON output
+ * @return the JSON-formatted gap report
  */
-internal fun buildJsonOutput(
-  /** The Gradle project path (e.g., `:app`). */
-  projectPath: String,
-  /** True if the coverage gate passed overall. */
-  passed: Boolean,
-  /** Computed results for each coverage metric. */
-  metricResults: Map<CoverageMetric, MetricResult>,
-  /** Source files that have uncovered lines or missed branch lines. */
-  filesWithGaps: List<FileCoverage>,
-  /** Whether to format the JSON output with indentation. Defaults to `false`. */
-  prettyPrint: Boolean = false,
-): String {
+internal fun buildJsonOutput(params: JsonOutputParams): String {
+  val projectPath = params.projectPath
+  val passed = params.passed
+  val metricResults = params.metricResults
+  val filesWithGaps = params.filesWithGaps
+  val prettyPrint = params.prettyPrint
+  val source = params.source
   val json = Json { this.prettyPrint = prettyPrint }
   val report =
     GapReport(
@@ -151,6 +169,7 @@ internal fun buildJsonOutput(
           metric.name to MetricJson(r.covered, r.total, r.percent, r.threshold, r.passed)
         },
       files = filesWithGaps.map { FileGap(it.name, it.packageName, it.uncoveredLines, it.missedBranchLines) },
+      source = source,
     )
 
   return json.encodeToString<GapReport>(report)
@@ -162,7 +181,7 @@ internal fun buildJsonOutput(
  * Gradle task that validates Kotlin/Kotlin-JVM coverage against configured thresholds and reports gaps in both
  * human-readable and JSON formats.
  */
-@CacheableTask
+@DisableCachingByDefault(because = "Configured to always generate a fresh report and freshness provenance")
 public abstract class KoverGateReportTask : DefaultTask() {
   /** The Kover XML report file input (path-sensitive, cacheable). */
   @get:InputFile @get:PathSensitive(PathSensitivity.RELATIVE) public abstract val xmlReportFile: RegularFileProperty
@@ -201,6 +220,14 @@ public abstract class KoverGateReportTask : DefaultTask() {
    * identifier in console and JSON output.
    */
   @get:Internal public abstract val projectPath: Property<String>
+
+  /**
+   * Build scripts whose modification times are compared against the Kover XML report's modification time to detect a
+   * stale report. Wired by the plugin to the module's and root project's build scripts, the settings file, and the
+   * version catalog. Declared `@Internal` because the task is configured to always run, so these files do not
+   * participate in up-to-date checking.
+   */
+  @get:Internal public abstract val buildScripts: ConfigurableFileCollection
 
   @TaskAction
   public fun generate() {
@@ -242,18 +269,35 @@ public abstract class KoverGateReportTask : DefaultTask() {
 
     val overallPassed = metricResults.values.all { it.passed }
     val filesWithGaps = parseResult.files.filter { it.uncoveredLines.isNotEmpty() || it.missedBranchLines.isNotEmpty() }
+    val buildScriptTimes = buildScripts.files.filter { it.exists() }.map { it.lastModified() }
+    val provenance = computeProvenance(xmlFile.absolutePath, xmlFile.lastModified(), buildScriptTimes)
 
     // Write JSON (always, even on pass)
     val jsonFile = jsonReportFile.get().asFile
 
     jsonFile.parentFile.mkdirs()
     jsonFile.writeText(
-      buildJsonOutput(projectPath.get(), overallPassed, metricResults, filesWithGaps, prettyPrintJson.get())
+      buildJsonOutput(
+        JsonOutputParams(
+          projectPath = projectPath.get(),
+          passed = overallPassed,
+          metricResults = metricResults,
+          filesWithGaps = filesWithGaps,
+          prettyPrint = prettyPrintJson.get(),
+          source = provenance,
+        )
+      )
     )
 
     // Print console summary
     val summary = buildConsoleOutput(projectPath.get(), metricResults, filesWithGaps, overallPassed)
 
     logger.lifecycle(summary)
+
+    val freshnessWarning = buildFreshnessWarning(provenance)
+
+    if (freshnessWarning != null) {
+      logger.warn(freshnessWarning)
+    }
   }
 }

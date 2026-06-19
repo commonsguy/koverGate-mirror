@@ -341,3 +341,25 @@ When a module declares `koverGate { attributeCoverageFrom(":other", ...) }`, its
 gap means *neither* this module's own tests *nor* the attributed module's tests cover that line. Close it by
 adding a test in whichever module is the natural home for exercising that code path — often the conformance /
 acceptance module, not the library module itself.
+
+## Diagnosing a Wrong or Stale Result
+
+If a gate result looks wrong — for example, it reports lines uncovered that your tests clearly exercise, or a
+package you excluded still appears — suspect a **stale** Kover XML before writing new tests.
+
+1. **Check the `source` block** in `gap-report.json`. If `"stale": true`, the XML the report was computed from
+   predates your build configuration.
+
+2. **Run the doctor** for a full snapshot of what the gate will read:
+   ```bash
+   ./gradlew :<module>:koverGateDoctor
+   ```
+   It prints the thresholds, the Kover XML path, whether that XML exists and is `stale`, and the excluded
+   packages — without running tests or failing the build.
+
+3. **If the report is stale, regenerate coverage** before drawing conclusions:
+   ```bash
+   ./gradlew :<module>:koverGateReport --rerun-tasks
+   ```
+   Then re-read the gap report. Only write new tests once the report is fresh — otherwise you may be chasing a
+   phantom gap that fresh coverage already closes.

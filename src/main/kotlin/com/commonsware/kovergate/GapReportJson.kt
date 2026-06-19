@@ -36,6 +36,7 @@ import kotlinx.serialization.Serializable
  * @param passed true if every metric met or exceeded its threshold; false otherwise
  * @param metrics map from metric name (e.g., `"LINE"`, `"BRANCH"`) to its coverage details
  * @param files list of source files that have uncovered lines or missed branch lines
+ * @param source provenance describing the XML the report was computed from and its freshness, or null if unset
  */
 @Serializable
 public data class GapReport(
@@ -43,6 +44,7 @@ public data class GapReport(
   val passed: Boolean,
   val metrics: Map<String, MetricJson>,
   val files: List<FileGap>,
+  val source: SourceProvenance? = null,
 )
 
 /**
@@ -86,3 +88,25 @@ public data class FileGap(
  * @param modules list of per-module gap reports, one entry per submodule that ran koverGateReport
  */
 @Serializable public data class AggregateGapReport(val passed: Boolean, val modules: List<GapReport>)
+
+/**
+ * Provenance for the coverage data a [GapReport] was computed from: which Kover XML file was read, when that file and
+ * the module's build scripts were last modified, and whether the XML appears stale relative to those build scripts.
+ *
+ * All timestamps are ISO-8601 instants in UTC (e.g. `2026-06-18T14:03:11Z`). A `true` [stale] flag means the newest
+ * build script is newer than the XML report, so the on-disk coverage may predate the current build configuration; the
+ * gap report was still computed faithfully from whatever the XML contained.
+ *
+ * @param xmlPath absolute path of the Kover XML report the gap report was computed from
+ * @param xmlModified ISO-8601 UTC instant the XML report was last modified
+ * @param stale true if the newest build script is newer than the XML report
+ * @param newestBuildScriptModified ISO-8601 UTC instant of the most recently modified build script, or null if no build
+ *   scripts were found
+ */
+@Serializable
+public data class SourceProvenance(
+  val xmlPath: String,
+  val xmlModified: String,
+  val stale: Boolean,
+  val newestBuildScriptModified: String? = null,
+)

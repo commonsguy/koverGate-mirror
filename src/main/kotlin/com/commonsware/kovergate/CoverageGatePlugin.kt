@@ -110,6 +110,10 @@ public class CoverageGatePlugin : Plugin<Project> {
         disabledMetrics.set(extension.disabledMetrics)
         prettyPrintJson.set(extension.prettyPrintJson)
         jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
+        buildScripts.from(buildScriptFiles(project))
+        // Always re-run this cheap (XML→JSON) step so the freshness check is re-evaluated every build and a
+        // stale gap report can never be served from an up-to-date or cached result.
+        outputs.upToDateWhen { false }
       }
 
     val gapReportProvider = generateTaskProvider.flatMap { it.jsonReportFile }
@@ -125,10 +129,13 @@ public class CoverageGatePlugin : Plugin<Project> {
 
     registerScopedReport(project, extension, gapReportProvider, generateTaskProvider)
 
+    val doctorTaskProvider = registerDoctorReport(project, extension)
+
     project.afterEvaluate {
       autoDisableJacocoIfNeeded(project)
       if (extension.xmlReportFile.isPresent) {
         generateTaskProvider.configure { xmlReportFile.set(extension.xmlReportFile) }
+        doctorTaskProvider.configure { xmlReportFile.set(extension.xmlReportFile) }
       } else {
         if (!project.pluginManager.hasPlugin("org.jetbrains.kotlinx.kover")) {
           throw GradleException(
@@ -138,11 +145,13 @@ public class CoverageGatePlugin : Plugin<Project> {
         }
 
         val koverTask = findKoverTask(project, extension)
+        val koverXml = project.layout.file(project.provider { koverTask.outputs.files.singleFile })
 
         generateTaskProvider.configure {
           dependsOn(koverTask)
-          xmlReportFile.set(project.layout.file(project.provider { koverTask.outputs.files.singleFile }))
+          xmlReportFile.set(koverXml)
         }
+        doctorTaskProvider.configure { xmlReportFile.set(koverXml) }
       }
 
       applyCoverageContributions(project, extension)
@@ -179,8 +188,58 @@ public class CoverageGatePlugin : Plugin<Project> {
     }
   }
 
+  /**
+   * Registers the `koverGateDoctor` diagnostic task for a leaf module. The task's `xmlReportFile` is wired separately
+   * in the plugin's `afterEvaluate` block, alongside the generate task, because the XML source (an explicit override
+   * versus the auto-detected Kover task) is only known after evaluation.
+   *
+   * @param project the module the plugin is applied to
+   * @param extension the `koverGate {}` extension supplying thresholds, disabled metrics, and recorded contributions
+   * @return the provider for the registered [KoverGateDoctorTask]
+   */
+  private fun registerDoctorReport(
+    project: Project,
+    extension: CoverageGateExtension,
+  ): org.gradle.api.tasks.TaskProvider<KoverGateDoctorTask> =
+    project.tasks.register("koverGateDoctor", KoverGateDoctorTask::class.java) {
+      group = "verification"
+      description =
+        "Prints coverage thresholds, the Kover XML it will read, that XML's freshness, and the resolved excludes"
+      projectPath.set(project.path)
+      minLineCoverage.set(extension.minLineCoverage)
+      minBranchCoverage.set(extension.minBranchCoverage)
+      minInstructionCoverage.set(extension.minInstructionCoverage)
+      minMethodCoverage.set(extension.minMethodCoverage)
+      minClassCoverage.set(extension.minClassCoverage)
+      disabledMetrics.set(extension.disabledMetrics)
+      buildScripts.from(buildScriptFiles(project))
+      resolvedExcludes.set(project.provider { extension.coverageContributions.flatMap { it.excludePackages } })
+    }
+
   private fun mainSourceRoots(project: Project): List<java.io.File> =
     listOf(project.file("src/main/kotlin"), project.file("src/main/java"))
+
+  /**
+   * Returns the build scripts whose modification times the generate and doctor tasks compare against the Kover XML to
+   * detect a stale report: this module's build script, the root project's build script, the root settings file, and the
+   * version catalog. Only files that currently exist are returned.
+   *
+   * @param project the module the plugin is applied to
+   * @return the existing build-script files relevant to this module's coverage configuration
+   */
+  private fun buildScriptFiles(project: Project): List<java.io.File> {
+    val rootDir = project.rootProject.projectDir
+    val candidates =
+      listOf(
+        project.buildFile,
+        project.rootProject.buildFile,
+        java.io.File(rootDir, "settings.gradle.kts"),
+        java.io.File(rootDir, "settings.gradle"),
+        java.io.File(rootDir, "gradle/libs.versions.toml"),
+      )
+
+    return candidates.filter { it.exists() }
+  }
 
   private fun findKoverTask(project: Project, extension: CoverageGateExtension) =
     extension.xmlReportTask

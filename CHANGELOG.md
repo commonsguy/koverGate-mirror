@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `koverGateDoctor` task (leaf modules): prints the configured thresholds, the Kover XML the gate will read,
+  that XML's freshness, and the packages excluded via `attributeCoverageFrom` — a one-command triage for "why
+  does the gate say that?" It never fails the build and never runs tests.
+- The gap report JSON now includes a `source` block recording the Kover XML path, its last-modified time, the
+  newest build-script modification time, and a `stale` flag. When the XML predates the module's build scripts,
+  `koverGateGenerateReport` logs a freshness warning suggesting `--rerun-tasks`. The warning is a coarse
+  heuristic and never fails the build.
+
+### Changed
+
+- `koverGateGenerateReport` is no longer cached and always re-runs. Parsing the Kover XML into the gap report
+  JSON is cheap, and always running it ensures the staleness check is re-evaluated every build so a stale gap
+  report can never be served from an up-to-date or cached result. The gate task (`koverGateReport`) still stays
+  up-to-date when the JSON is unchanged.
+
 - `koverGate { attributeCoverageFrom(":module", excludePackages = listOf(...)) }` attributes another module's
   test coverage to this module's gate. It wires Kover's cross-module aggregation so the named module's
   coverage is merged into this module's report, and excludes the named packages (the contributing module's
