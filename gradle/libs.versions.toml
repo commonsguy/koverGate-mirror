@@ -6,7 +6,7 @@ junit = "5.14.4"
 junit-platform = "1.14.4"
 kotlinx-serialization = "1.11.0"
 kover = "0.9.8"
-kovergate = "0.3.0"
+kovergate = "0.4.0"
 ktfmt-gradle = "0.26.0"
 
 [libraries]

@@ -17,7 +17,7 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
 }
 ```
 
@@ -111,7 +111,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
 }
 
 koverGate {
@@ -128,7 +128,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
     jacoco
 }
 
@@ -180,7 +180,7 @@ When Kover is not applied at all, the Gradle `jacoco` plugin handles unit-test e
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
     jacoco
 }
 
@@ -224,7 +224,7 @@ For multi-module builds, apply the plugin to the root project as well as each su
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
 }
 ```
 
@@ -232,7 +232,7 @@ plugins {
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
 }
 ```
 
@@ -268,11 +268,11 @@ On failure, the task prints a summary to the build log and then fails:
 
 ```
 Coverage gate FAILED for :your-module
-  Line:        88.5% (177/200) [FAIL]  [min: 90%]
-  Branch:      91.2% ( 52/ 57) [PASS]
+  Line: 88.5% (177/200) [FAIL]  [min: 90%]
+  Branch: 91.2% (52/57) [PASS]
   Instruction: 89.1% (890/999) [FAIL]  [min: 90%]
-  Method:      96.0% ( 48/ 50) [PASS]
-  Class:       100.0% (12/12) [PASS]
+  Method: 96.0% (48/50) [PASS]
+  Class: 100.0% (12/12) [PASS]
 
 Files with gaps:
   Foo.kt
@@ -314,6 +314,8 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
 }
 ```
 
+> **Note:** Every leaf-module `gap-report.json` also carries a `source` provenance block (after `files`) recording which XML the numbers came from and whether it is stale. It is omitted from the example above for brevity — see [Report Provenance & Freshness](#report-provenance--freshness). The aggregate report carries the same block inside each entry of its `modules` array.
+
 ### Aggregate JSON Structure
 
 When the root project plugin is applied, the aggregate report at `build/reports/kover/gap-report.json` wraps each submodule's `GapReport` in a `modules` array:
@@ -344,7 +346,7 @@ The `koverGateScopedReport` task filters the gap report to only the lines **chan
 
 ### What It Does
 
-`koverGateScopedReport` depends on `koverGateReport` and reads its `gap-report.json`. It then diffs the working tree against the merge-base of the configured base ref and `HEAD` — capturing committed *and* uncommitted tracked changes — and keeps only the `uncoveredLines` and `missedBranchLines` entries that fall on a changed line. The result is written to `build/reports/kover/scoped-gap-report.json`.
+`koverGateScopedReport` depends on `koverGateGenerateReport` (the non-gating JSON writer) and reads its `gap-report.json`. It then diffs the working tree against the merge-base of the configured base ref and `HEAD` — capturing committed *and* uncommitted tracked changes — and keeps only the `uncoveredLines` and `missedBranchLines` entries that fall on a changed line. The result is written to `build/reports/kover/scoped-gap-report.json`. Because it depends on the generate step rather than the gate, it always completes — even when overall coverage is below threshold.
 
 > **Note:** Untracked files (never `git add`-ed) are excluded from the diff. Run `git add` first if you need new files included.
 

@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.0] - 2026-06-20
 
 ### Added
 
@@ -29,7 +29,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   JSON is cheap, and always running it ensures the staleness check is re-evaluated every build so a stale gap
   report can never be served from an up-to-date or cached result. The gate task (`koverGateReport`) still stays
   up-to-date when the JSON is unchanged.
-
 - `koverGate { attributeCoverageFrom(":module", excludePackages = listOf(...)) }` attributes another module's
   test coverage to this module's gate. It wires Kover's cross-module aggregation so the named module's
   coverage is merged into this module's report, and excludes the named packages (the contributing module's
@@ -102,7 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
-[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.3.0...HEAD
+[0.4.0]: https://codeberg.org/commonsguy/koverGate/compare/0.3.0...0.4.0
 [0.3.0]: https://codeberg.org/commonsguy/koverGate/compare/0.2.0...0.3.0
 [0.2.0]: https://codeberg.org/commonsguy/koverGate/compare/0.1.3...0.2.0
 [0.1.3]: https://codeberg.org/commonsguy/koverGate/compare/0.1.2...0.1.3

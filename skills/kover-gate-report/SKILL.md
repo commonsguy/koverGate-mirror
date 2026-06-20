@@ -83,7 +83,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
     jacoco
 }
 
@@ -136,7 +136,7 @@ instrumented-test exec:
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.3.0"
+    id("com.commonsware.kovergate") version "0.4.0"
     jacoco
 }
 
@@ -268,72 +268,6 @@ Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear
 - The JSON report is always written (even on pass) at `build/reports/kover/gap-report.json` for each leaf module.
 - The aggregate report at root is only written when all submodule tasks succeed.
 
-## Upgrade Guide: Adding Root Project Support (0.1.3 → 0.2.0)
-
-Prior to 0.2.0, KoverGate only supported leaf modules and produced no aggregate report at root.
-
-To enable the aggregate report for an existing multi-module project:
-
-1. **Bump the plugin version** in all modules from `0.1.3` to `0.2.0`.
-
-2. **Apply the plugin to the root project.** Add to your root `build.gradle.kts`:
-   ```kotlin
-   plugins {
-       id("com.commonsware.kovergate") version "0.2.0"
-   }
-   ```
-   The root project does **not** need `org.jetbrains.kotlinx.kover` applied.
-
-3. **Run `./gradlew koverGateReport`** from the project root to verify the aggregate report is
-   generated at `build/reports/kover/gap-report.json`.
-
-## Upgrade Guide: Scoped Report and JaCoCo Support (0.2.0 → 0.3.0-alpha01)
-
-0.3.0-alpha01 adds two new features. No breaking changes; existing configuration continues to work without modification.
-
-### New: `koverGateScopedReport` task
-
-Available automatically on every module that already applies `com.commonsware.kovergate`. No configuration required to start using it:
-
-```bash
-./gradlew :<module>:koverGateScopedReport
-```
-
-See the **Scoped Report** section above for full usage.
-
-### New: `xmlReportFile` DSL property
-
-Allows gating on an externally produced JaCoCo XML report (e.g. from a `JacocoReport` merge task) instead of a Kover-generated report. When set, the Kover plugin is optional. See **Merged Unit + Instrumented Coverage (Android)** above for setup.
-
-To upgrade: bump the plugin version to `0.3.0-alpha01` in every module and the root project (if applicable). No other changes are required unless you want to opt in to the new features.
-
-## Upgrade Guide: Split Generate/Gate Tasks (0.3.0-alpha01 → 0.3.0)
-
-0.3.0 adds two behaviour changes that improve developer experience. No breaking changes; existing configuration continues to work without modification.
-
-### New: `koverGateGenerateReport` task
-
-Leaf modules now expose a `koverGateGenerateReport` task that parses the Kover XML and writes the gap report JSON **without failing the build**. The existing `koverGateReport` task is now a thin gate that reads the JSON produced by `koverGateGenerateReport` and fails the build only when `passed == false`.
-
-The `koverGateGenerateReport` task name is the one to reference in your own task wiring if you need the JSON without triggering the gate (for example, when passing it to an external reporting tool).
-
-### Changed: `koverGateScopedReport` dependency
-
-`koverGateScopedReport` now depends on `koverGateGenerateReport` (the pure JSON writer) instead of `koverGateReport` (the gate). This means running `koverGateScopedReport` **always succeeds** — even when overall coverage is below threshold — without needing `--continue`.
-
-### New: Auto-disable of Gradle jacoco instrumentation
-
-When `kover { useJacoco() }` is detected, KoverGate now automatically disables the Gradle `jacoco` plugin's instrumentation on `Test` tasks. The manual workaround block previously shown in the Scenario 2 setup is no longer required:
-
-```kotlin
-// No longer needed in 0.3.0+:
-// tasks.withType<Test>().configureEach {
-//     extensions.getByType(JacocoTaskExtension::class.java).isEnabled = false
-// }
-```
-
-To upgrade: bump the plugin version to `0.3.0` in every module and the root project (if applicable). No other changes are required.
-
 ## Attributed coverage (cross-module)
 
 When a module declares `koverGate { attributeCoverageFrom(":other", ...) }`, its gap report already reflects
@@ -363,3 +297,112 @@ package you excluded still appears — suspect a **stale** Kover XML before writ
    ```
    Then re-read the gap report. Only write new tests once the report is fresh — otherwise you may be chasing a
    phantom gap that fresh coverage already closes.
+
+## Upgrade Guides
+
+Historical migration notes, oldest first. Each guide is self-contained — jump to the one matching the version
+you are coming from.
+
+### Adding Root Project Support (0.1.3 → 0.2.0)
+
+Prior to 0.2.0, KoverGate only supported leaf modules and produced no aggregate report at root.
+
+To enable the aggregate report for an existing multi-module project:
+
+1. **Bump the plugin version** in all modules from `0.1.3` to `0.2.0`.
+
+2. **Apply the plugin to the root project.** Add to your root `build.gradle.kts`:
+   ```kotlin
+   plugins {
+       id("com.commonsware.kovergate") version "0.2.0"
+   }
+   ```
+   The root project does **not** need `org.jetbrains.kotlinx.kover` applied.
+
+3. **Run `./gradlew koverGateReport`** from the project root to verify the aggregate report is
+   generated at `build/reports/kover/gap-report.json`.
+
+### Scoped Report and JaCoCo Support (0.2.0 → 0.3.0-alpha01)
+
+0.3.0-alpha01 adds two new features. No breaking changes; existing configuration continues to work without modification.
+
+#### New: `koverGateScopedReport` task
+
+Available automatically on every module that already applies `com.commonsware.kovergate`. No configuration required to start using it:
+
+```bash
+./gradlew :<module>:koverGateScopedReport
+```
+
+See the **Scoped Report** section above for full usage.
+
+#### New: `xmlReportFile` DSL property
+
+Allows gating on an externally produced JaCoCo XML report (e.g. from a `JacocoReport` merge task) instead of a Kover-generated report. When set, the Kover plugin is optional. See **Merged Unit + Instrumented Coverage (Android)** above for setup.
+
+To upgrade: bump the plugin version to `0.3.0-alpha01` in every module and the root project (if applicable). No other changes are required unless you want to opt in to the new features.
+
+### Split Generate/Gate Tasks (0.3.0-alpha01 → 0.3.0)
+
+0.3.0 adds two behaviour changes that improve developer experience. No breaking changes; existing configuration continues to work without modification.
+
+#### New: `koverGateGenerateReport` task
+
+Leaf modules now expose a `koverGateGenerateReport` task that parses the Kover XML and writes the gap report JSON **without failing the build**. The existing `koverGateReport` task is now a thin gate that reads the JSON produced by `koverGateGenerateReport` and fails the build only when `passed == false`.
+
+The `koverGateGenerateReport` task name is the one to reference in your own task wiring if you need the JSON without triggering the gate (for example, when passing it to an external reporting tool).
+
+#### Changed: `koverGateScopedReport` dependency
+
+`koverGateScopedReport` now depends on `koverGateGenerateReport` (the pure JSON writer) instead of `koverGateReport` (the gate). This means running `koverGateScopedReport` **always succeeds** — even when overall coverage is below threshold — without needing `--continue`.
+
+#### New: Auto-disable of Gradle jacoco instrumentation
+
+When `kover { useJacoco() }` is detected, KoverGate now automatically disables the Gradle `jacoco` plugin's instrumentation on `Test` tasks. The manual workaround block previously shown in the Scenario 2 setup is no longer required:
+
+```kotlin
+// No longer needed in 0.3.0+:
+// tasks.withType<Test>().configureEach {
+//     extensions.getByType(JacocoTaskExtension::class.java).isEnabled = false
+// }
+```
+
+To upgrade: bump the plugin version to `0.3.0` in every module and the root project (if applicable). No other changes are required.
+
+### Per-Line Branch Ratios, Doctor & Freshness (0.3.0 → 0.4.0)
+
+0.4.0 adds two diagnostics and makes one **breaking** change to the gap report JSON.
+
+#### Breaking (JSON): `missedBranchLines` is now an array of objects
+
+`missedBranchLines` — in both `gap-report.json` and `scoped-gap-report.json` — changed from an array of bare line numbers to an array of `{ line, missed, total }` objects.
+
+Before (0.3.0 and earlier):
+
+```json
+"missedBranchLines": [42]
+```
+
+After (0.4.0):
+
+```json
+"missedBranchLines": [{ "line": 42, "missed": 1, "total": 2 }]
+```
+
+The extra detail lets you triage at a glance: a `missed`/`total` of `1/2` usually marks one unreachable branch arm (refactor or accept), while `2/2` is a genuinely untested branch (write a test). **Any agent or script that parsed the old integer array must be updated** to read the `line` field of each object.
+
+#### New: `koverGateDoctor` task
+
+Leaf modules expose a `koverGateDoctor` task that prints, in one place, the configured thresholds (and which metrics are disabled), the Kover XML the gate will read, whether that XML exists and is stale, and the packages excluded via `attributeCoverageFrom` — without running tests or failing the build:
+
+```bash
+./gradlew :<module>:koverGateDoctor
+```
+
+Use it as a first step when a verdict looks wrong. See **Diagnosing a Wrong or Stale Result** above.
+
+#### New: report provenance and staleness warning
+
+`gap-report.json` now carries a `source` block recording the XML path the numbers came from, its last-modified time, the newest build-script modification time, and a `stale` flag. When the XML predates the module's build scripts, `koverGateGenerateReport` logs a freshness warning (it never fails the build) so a stale report cannot quietly produce a confident-but-wrong verdict.
+
+To upgrade: bump the plugin version to `0.4.0` in every module and the root project (if applicable). The only required change is on the consumer side, if anything you maintain parses `missedBranchLines` from the JSON.
