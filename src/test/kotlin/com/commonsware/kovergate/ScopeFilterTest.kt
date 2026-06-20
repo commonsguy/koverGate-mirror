@@ -45,13 +45,19 @@ class ScopeFilterTest {
 
   @Test
   fun `filters missed branch lines by changed lines`() {
-    val gap = FileGap("Foo.kt", "com/example", uncoveredLines = emptyList(), missedBranchLines = listOf(10, 11))
+    val gap =
+      FileGap(
+        "Foo.kt",
+        "com/example",
+        uncoveredLines = emptyList(),
+        missedBranchLines = listOf(BranchGap(10, 1, 2), BranchGap(11, 1, 2)),
+      )
     val filter =
       BranchDiffScopeFilter(changedLinesByPath = mapOf("p/Foo.kt" to setOf(11)), resolvePath = { "p/Foo.kt" })
 
     val result = filter.apply(report(gap))
 
-    assertEquals(listOf(11), result.files[0].missedBranchLines)
+    assertEquals(listOf(BranchGap(11, 1, 2)), result.files[0].missedBranchLines)
   }
 
   @Test

@@ -11,3 +11,4 @@ build/
 /gradlew.bat
 .ai-jail
 /.kotlin/
+/RELEASING.md

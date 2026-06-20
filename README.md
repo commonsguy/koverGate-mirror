@@ -277,7 +277,7 @@ Coverage gate FAILED for :your-module
 Files with gaps:
   Foo.kt
     Lines 42, 57 uncovered
-    Branches 42 missed (1 of 2)
+    Branches 42 (1/2) missed (1 of 2)
   Bar.kt
     Line 113 uncovered
 ```
@@ -302,7 +302,7 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
       "name": "Foo.kt",
       "package": "com/example",
       "uncoveredLines": [42, 57],
-      "missedBranchLines": [42]
+      "missedBranchLines": [{ "line": 42, "missed": 1, "total": 2 }]
     },
     {
       "name": "Bar.kt",
@@ -383,7 +383,7 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
       "name": "Calculator.kt",
       "package": "com/example",
       "uncoveredLines": [12],
-      "missedBranchLines": [15]
+      "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }]
     }
   ]
 }

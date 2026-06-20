@@ -16,9 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   newest build-script modification time, and a `stale` flag. When the XML predates the module's build scripts,
   `koverGateGenerateReport` logs a freshness warning suggesting `--rerun-tasks`. The warning is a coarse
   heuristic and never fails the build.
+- The gap report JSON now reports each missed-branch line as a `{ "line", "missed", "total" }` object instead of
+  a bare line number, so an unreachable branch arm (`1/2`) reads differently from a genuinely untested one
+  (`2/2`). The console shows the same ratio inline, e.g. `Branches 123 (1/2), 140 (2/2) missed (3 of 4)`.
 
 ### Changed
 
+- **Breaking (JSON):** `missedBranchLines` in `gap-report.json` (and the scoped report) changed from an array
+  of line numbers (`[42]`) to an array of objects (`[{ "line": 42, "missed": 1, "total": 2 }]`). Consumers
+  parsing the integer array must update.
 - `koverGateGenerateReport` is no longer cached and always re-runs. Parsing the Kover XML into the gap report
   JSON is cheap, and always running it ensures the staleness check is re-evaluated every build so a stale gap
   report can never be served from an up-to-date or cached result. The gate task (`koverGateReport`) still stays

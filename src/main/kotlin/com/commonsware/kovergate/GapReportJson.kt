@@ -71,15 +71,25 @@ public data class MetricJson(
  * @param name the simple file name (e.g., "Foo.kt")
  * @param packageName the package of the file (e.g., "com.example.app"), serialized as the JSON key `"package"`
  * @param uncoveredLines line numbers within the file that have no coverage
- * @param missedBranchLines line numbers that contain branches with at least one missed branch
+ * @param missedBranchLines per-line branch detail (missed of total) for lines with at least one missed branch
  */
 @Serializable
 public data class FileGap(
   val name: String,
   @SerialName("package") val packageName: String,
   val uncoveredLines: List<Int>,
-  val missedBranchLines: List<Int>,
+  val missedBranchLines: List<BranchGap>,
 )
+
+/**
+ * Per-line branch coverage detail within a [FileGap]: how many of a source line's branches were missed out of its
+ * total.
+ *
+ * @param line the 1-based source line number containing the branches
+ * @param missed the number of branches on this line with no coverage
+ * @param total the total number of branches on this line (missed plus covered)
+ */
+@Serializable public data class BranchGap(val line: Int, val missed: Int, val total: Int)
 
 /**
  * Top-level structure for the root-level aggregate gap-report.json in multi-module projects.

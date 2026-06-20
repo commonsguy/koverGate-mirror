@@ -126,7 +126,7 @@ class XmlReportParserTest {
     val file = result.files.single()
     assertEquals("Bar.kt", file.name)
     assertEquals(listOf(15, 20), file.uncoveredLines)
-    assertTrue(file.missedBranchLines.isEmpty())
+    assertTrue(file.branchLines.isEmpty())
   }
 
   @Test
@@ -147,7 +147,7 @@ class XmlReportParserTest {
       )
 
     val file = result.files.single()
-    assertEquals(listOf(5), file.missedBranchLines)
+    assertEquals(listOf(BranchLine(5, 2, 4)), file.branchLines)
     assertTrue(file.uncoveredLines.isEmpty())
   }
 
@@ -170,7 +170,7 @@ class XmlReportParserTest {
 
     val file = result.files.single()
     assertTrue(file.uncoveredLines.isEmpty())
-    assertTrue(file.missedBranchLines.isEmpty())
+    assertTrue(file.branchLines.isEmpty())
   }
 
   @Test
@@ -257,7 +257,7 @@ class XmlReportParserTest {
     // the merge means both appear covered and neither list has entries.
     val widget = result.files.single { it.name == "Widget.kt" }
     assertTrue(widget.uncoveredLines.isEmpty())
-    assertTrue(widget.missedBranchLines.isEmpty())
+    assertTrue(widget.branchLines.isEmpty())
   }
 
   @Test
@@ -280,5 +280,28 @@ class XmlReportParserTest {
     val file = result.files.single()
     assertEquals(2, file.missedBranches)
     assertEquals(4, file.totalBranches)
+  }
+
+  @Test
+  fun `captures per-line branch ratios`() {
+    val result =
+      parseXml(
+        """
+        <report name="test">
+            <package name="com/example">
+                <sourcefile name="Bar.kt">
+                    <line nr="5" mi="0" ci="1" mb="1" cb="1"/>
+                    <line nr="9" mi="0" ci="1" mb="2" cb="0"/>
+                    <line nr="12" mi="0" ci="1" mb="0" cb="4"/>
+                </sourcefile>
+            </package>
+        </report>
+        """
+          .trimIndent()
+      )
+
+    val file = result.files.single()
+
+    assertEquals(listOf(BranchLine(5, 1, 2), BranchLine(9, 2, 2)), file.branchLines)
   }
 }

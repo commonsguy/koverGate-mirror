@@ -129,14 +129,21 @@ class KoverGateReportTaskTest {
     val results = mapOf(CoverageMetric.LINE to MetricResult(161, 163, 98.8, 100, false))
     val files =
       listOf(
-        FileCoverage("Foo.kt", "com/example", listOf(45, 47), listOf(45), missedBranches = 1, totalBranches = 2),
+        FileCoverage(
+          "Foo.kt",
+          "com/example",
+          listOf(45, 47),
+          listOf(BranchLine(45, 1, 2)),
+          missedBranches = 1,
+          totalBranches = 2,
+        ),
         FileCoverage("Bar.kt", "com/example", listOf(112), emptyList()),
       )
     val output = buildConsoleOutput(":m", results, files, passed = false)
     assertTrue(output.contains("Files with gaps:"))
     assertTrue(output.contains("Foo.kt"))
     assertTrue(output.contains("Lines 45, 47 uncovered"))
-    assertTrue(output.contains("Branches 45 missed (1 of 2)"))
+    assertTrue(output.contains("Branches 45 (1/2) missed (1 of 2)"))
     assertTrue(output.contains("Bar.kt"))
     assertTrue(output.contains("Line 112 uncovered"))
   }
@@ -247,7 +254,7 @@ class KoverGateReportTaskTest {
 
   @Test
   fun `JSON files array contains gap files`() {
-    val files = listOf(FileCoverage("Foo.kt", "com/example", listOf(45, 47), listOf(45)))
+    val files = listOf(FileCoverage("Foo.kt", "com/example", listOf(45, 47), listOf(BranchLine(45, 1, 2))))
     val report =
       parseJson(
         buildJsonOutput(
@@ -265,7 +272,7 @@ class KoverGateReportTaskTest {
     assertEquals("Foo.kt", file.name)
     assertEquals("com/example", file.packageName)
     assertEquals(listOf(45, 47), file.uncoveredLines)
-    assertEquals(listOf(45), file.missedBranchLines)
+    assertEquals(listOf(BranchGap(45, 1, 2)), file.missedBranchLines)
   }
 
   @Test

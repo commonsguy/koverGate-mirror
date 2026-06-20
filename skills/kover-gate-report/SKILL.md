@@ -26,7 +26,7 @@ After writing or modifying tests in a module, check coverage gaps and close them
    - If `"passed": true` — coverage requirements are met. Done.
    - If `"passed": false` — examine the `files` array. Each entry lists:
      - `uncoveredLines`: line numbers with no coverage (`mi > 0`)
-     - `missedBranchLines`: line numbers with partial branch coverage (`mb > 0`)
+     - `missedBranchLines`: per-line `{ line, missed, total }` objects for lines with partial branch coverage (`mb > 0`). A `missed`/`total` of `1/2` often marks an unreachable arm (refactor or accept); `2/2` is a genuinely untested branch (write a test)
 
 4. **Write targeted tests** to cover the identified lines and branches. Focus on:
    - The specific line numbers listed in `uncoveredLines`
@@ -251,7 +251,7 @@ Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is
       "name": "Calculator.kt",
       "package": "com/example",
       "uncoveredLines": [12],
-      "missedBranchLines": [15]
+      "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }]
     }
   ]
 }

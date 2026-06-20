@@ -22,11 +22,20 @@ import org.w3c.dom.Element
 
 internal data class Counter(val missed: Int, val covered: Int)
 
+/**
+ * Per-line branch coverage detail.
+ *
+ * @property line the 1-based source line number containing the branches
+ * @property missed the number of branches on this line with no coverage
+ * @property total the total number of branches on this line (missed plus covered)
+ */
+internal data class BranchLine(val line: Int, val missed: Int, val total: Int)
+
 internal data class FileCoverage(
   val name: String,
   val packageName: String,
   val uncoveredLines: List<Int>,
-  val missedBranchLines: List<Int>,
+  val branchLines: List<BranchLine> = emptyList(),
   val missedBranches: Int = 0,
   val totalBranches: Int = 0,
 )
@@ -84,14 +93,18 @@ internal object XmlReportParser {
 
   private fun parseSourceFile(sf: Element, packageName: String): FileCoverage {
     val uncoveredLines = mutableListOf<Int>()
-    val missedBranchLines = mutableListOf<Int>()
+    val branchLines = mutableListOf<BranchLine>()
     val lines = sf.getElementsByTagName("line")
 
     for (i in 0 until lines.length) {
       val line = lines.item(i) as Element
       val nr = line.getAttribute("nr").toInt()
+      val missed = line.getAttribute("mb").toIntOrNull() ?: 0
+      val covered = line.getAttribute("cb").toIntOrNull() ?: 0
+
       if ((line.getAttribute("mi").toIntOrNull() ?: 0) > 0) uncoveredLines += nr
-      if ((line.getAttribute("mb").toIntOrNull() ?: 0) > 0) missedBranchLines += nr
+
+      if (missed > 0) branchLines += BranchLine(nr, missed, missed + covered)
     }
 
     // Read file-level BRANCH counter for the "(N of M)" display in console
@@ -116,7 +129,7 @@ internal object XmlReportParser {
       name = sf.getAttribute("name"),
       packageName = packageName,
       uncoveredLines = uncoveredLines.sorted(),
-      missedBranchLines = missedBranchLines.sorted(),
+      branchLines = branchLines.sortedBy { it.line },
       missedBranches = missedBranches,
       totalBranches = totalBranches,
     )

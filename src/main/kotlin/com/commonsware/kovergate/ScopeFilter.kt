@@ -50,7 +50,7 @@ internal class BranchDiffScopeFilter(
         val path = resolvePath(file) ?: return@mapNotNull null
         val changed = changedLinesByPath[path] ?: emptySet()
         val uncovered = file.uncoveredLines.filter { it in changed }
-        val missedBranch = file.missedBranchLines.filter { it in changed }
+        val missedBranch = file.missedBranchLines.filter { it.line in changed }
 
         if (uncovered.isEmpty() && missedBranch.isEmpty()) {
           null
