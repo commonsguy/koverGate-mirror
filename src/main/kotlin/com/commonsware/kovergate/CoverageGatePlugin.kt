@@ -16,20 +16,25 @@
 
 package com.commonsware.kovergate
 
+import javax.inject.Inject
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.tasks.testing.Test
+import org.gradle.build.event.BuildEventsListenerRegistry
 import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 
 /** Gradle plugin that configures coverage gate checking against Kover XML reports. */
-public class CoverageGatePlugin : Plugin<Project> {
+public class CoverageGatePlugin @Inject constructor(private val listenerRegistry: BuildEventsListenerRegistry) :
+  Plugin<Project> {
   /**
    * Applies the plugin. If the project has subprojects, registers a [KoverGateAggregateReportTask] to merge all
    * submodule gap reports. Otherwise registers a [KoverGateReportTask] that checks Kover coverage for this module.
    */
   override fun apply(project: Project) {
     val extension = project.extensions.create("koverGate", CoverageGateExtension::class.java)
+
+    registerFreshnessService(project, listenerRegistry)
 
     if (project.parent == null && project.subprojects.isNotEmpty()) {
       applyAsAggregateRoot(project, extension)

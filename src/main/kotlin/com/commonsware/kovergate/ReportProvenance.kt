@@ -65,10 +65,11 @@ internal fun buildFreshnessWarning(provenance: SourceProvenance): String? {
   if (!provenance.stale) return null
 
   return buildString {
-    appendLine("KoverGate: coverage report may be STALE.")
+    appendLine("KoverGate: coverage report may be STALE (build-script timestamp heuristic).")
     appendLine("  Kover XML: ${provenance.xmlPath}")
     appendLine("  XML modified:          ${provenance.xmlModified}")
     appendLine("  Build script modified: ${provenance.newestBuildScriptModified}")
-    append("  The XML predates your build configuration; re-run with --rerun-tasks to regenerate coverage.")
+    appendLine("  A build script is newer than the Kover XML, so coverage may predate your current config.")
+    append("  This is a timestamp heuristic, not a guarantee; re-run with --rerun-tasks to regenerate coverage.")
   }
 }

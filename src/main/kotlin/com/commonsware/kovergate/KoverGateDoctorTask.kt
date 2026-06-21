@@ -84,9 +84,10 @@ internal fun buildDoctorOutput(params: DoctorOutputParams): String = buildString
   appendLine("  exists: $xmlExists")
 
   if (provenance != null) {
-    appendLine("  modified: ${provenance.xmlModified}")
-    appendLine("  newest build script: ${provenance.newestBuildScriptModified ?: "n/a"}")
-    appendLine("  stale: ${provenance.stale}")
+    appendLine("  Freshness (build-script timestamp heuristic):")
+    appendLine("    modified: ${provenance.xmlModified}")
+    appendLine("    newest build script: ${provenance.newestBuildScriptModified ?: "n/a"}")
+    appendLine("    stale: ${provenance.stale}")
   } else {
     appendLine("  (run koverGateGenerateReport to produce it)")
   }

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A **producer-reuse freshness warning**: at build completion, KoverGate now warns when a module's `koverGateReport`
+  gate ran (executed or failed) while Gradle served that module's `koverXmlReport*` task up-to-date or from cache —
+  the situation where a coverage verdict can look wrong because the Kover XML was not regenerated. The message names
+  the module and the reuse outcome and suggests `--rerun-tasks`. It is implemented with a configuration-cache-safe
+  build service that observes task outcomes and logs at build's end. Like all freshness signals, it never fails the
+  build.
+
+### Changed
+
+- The existing build-script staleness check is now explicitly labeled a **build-script timestamp heuristic** in both
+  the `koverGateGenerateReport` freshness warning and the `koverGateDoctor` output, to make clear it is a coarse
+  timestamp proxy rather than a definitive verdict. No behavior or JSON change.
+
 ## [0.4.0] - 2026-06-20
 
 ### Added

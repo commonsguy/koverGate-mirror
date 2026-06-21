@@ -406,3 +406,12 @@ Use it as a first step when a verdict looks wrong. See **Diagnosing a Wrong or S
 `gap-report.json` now carries a `source` block recording the XML path the numbers came from, its last-modified time, the newest build-script modification time, and a `stale` flag. When the XML predates the module's build scripts, `koverGateGenerateReport` logs a freshness warning (it never fails the build) so a stale report cannot quietly produce a confident-but-wrong verdict.
 
 To upgrade: bump the plugin version to `0.4.0` in every module and the root project (if applicable). The only required change is on the consumer side, if anything you maintain parses `missedBranchLines` from the JSON.
+
+### Producer-Reuse Freshness Warning (Unreleased)
+
+Two refinements to staleness reporting:
+
+- The build-script staleness check is now explicitly labeled a **build-script timestamp heuristic** in both the `koverGateGenerateReport` warning and `koverGateDoctor` output. It compares the Kover XML's mtime to your build scripts' mtimes — a coarse proxy, not a guarantee.
+- A new **producer-reuse warning** fires when a module's `koverGateReport` gate runs (executes or fails) while Gradle served that module's `koverXmlReport*` task up-to-date or from cache. It is logged at build completion: `KoverGate freshness: the Kover XML for <module> was reused (UP_TO_DATE/FROM_CACHE) this build while its coverage gate ran; ... re-run with --rerun-tasks ...`. This catches the case where a verdict looks wrong because Gradle did not regenerate the Kover XML. Like the other freshness signals, it never fails the build.
+
+No action needed on upgrade; both are diagnostic-only.

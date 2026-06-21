@@ -91,6 +91,27 @@ class KoverGateDoctorTaskTest {
   }
 
   @Test
+  fun `doctor output labels freshness as a build-script timestamp heuristic`() {
+    val provenance =
+      SourceProvenance("/p/report.xml", isoInstant(1000), stale = true, newestBuildScriptModified = isoInstant(2000))
+
+    val output =
+      buildDoctorOutput(
+        DoctorOutputParams(
+          projectPath = ":app",
+          thresholds = allThresholds,
+          disabledMetrics = emptySet(),
+          xmlPath = "/p/report.xml",
+          xmlExists = true,
+          provenance = provenance,
+          resolvedExcludes = emptyList(),
+        )
+      )
+
+    assertTrue(output.contains("build-script timestamp heuristic"))
+  }
+
+  @Test
   fun `doctor output reports a missing XML without provenance`() {
     val output =
       buildDoctorOutput(

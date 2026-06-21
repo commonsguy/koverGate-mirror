@@ -466,6 +466,18 @@ This catches the case where a cached or up-to-date Kover XML predates a change t
 
 > **Why always re-run?** `koverGateGenerateReport` (the cheap XML→JSON step) is intentionally **not cached** and always runs, so the freshness check is re-evaluated on every build. The gate itself (`koverGateReport`) still stays up-to-date when the JSON is unchanged, so this adds no meaningful cost.
 
+### Producer-reuse warning
+
+The `stale` flag above is a build-script **timestamp heuristic**: it only compares the Kover XML's modification time to your build scripts'. It cannot tell whether Gradle actually regenerated the XML this build.
+
+KoverGate adds a second, complementary signal for exactly that. When a module's `koverGateReport` gate runs (executes or fails) while Gradle serves that module's `koverXmlReport*` task **up-to-date or from cache**, KoverGate logs a warning at the end of the build:
+
+```
+KoverGate freshness: the Kover XML for :app was reused (UP_TO_DATE) this build while its coverage gate ran; if the verdict looks wrong, re-run with --rerun-tasks to regenerate coverage.
+```
+
+This is the situation in which a verdict can look wrong because Gradle did not rebuild the Kover XML from fresh inputs. Like the staleness heuristic, it never fails the build — re-run with `--rerun-tasks` to force regeneration.
+
 ### `koverGateDoctor`
 
 For a one-command snapshot of everything that decides a verdict, run:

@@ -93,6 +93,17 @@ class ReportProvenanceTest {
     assertTrue(warning.contains("--rerun-tasks"))
   }
 
+  @Test
+  fun `buildFreshnessWarning labels staleness as a build-script heuristic`() {
+    val provenance =
+      SourceProvenance("/p/report.xml", isoInstant(1000), stale = true, newestBuildScriptModified = isoInstant(2000))
+
+    val warning = buildFreshnessWarning(provenance)
+
+    assertNotNull(warning)
+    assertTrue(warning!!.contains("heuristic"))
+  }
+
   // --- GapReport serialization ---
 
   @Test
