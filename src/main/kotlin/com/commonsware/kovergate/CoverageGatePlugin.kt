@@ -32,18 +32,18 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
    * submodule gap reports. Otherwise registers a [KoverGateReportTask] that checks Kover coverage for this module.
    */
   override fun apply(project: Project) {
-    val extension = project.extensions.create("koverGate", CoverageGateExtension::class.java)
-
     registerFreshnessService(project, listenerRegistry)
 
     if (project.parent == null && project.subprojects.isNotEmpty()) {
+      val extension = project.extensions.create("koverGate", RootCoverageGateExtension::class.java)
       applyAsAggregateRoot(project, extension)
     } else {
+      val extension = project.extensions.create("koverGate", CoverageGateExtension::class.java)
       applyAsLeaf(project, extension)
     }
   }
 
-  private fun applyAsAggregateRoot(project: Project, extension: CoverageGateExtension) {
+  private fun applyAsAggregateRoot(project: Project, extension: RootCoverageGateExtension) {
     val taskProvider =
       project.tasks.register("koverGateReport", KoverGateAggregateReportTask::class.java) {
         group = "verification"

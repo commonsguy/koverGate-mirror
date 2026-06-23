@@ -228,6 +228,10 @@ plugins {
 }
 ```
 
+The root `koverGate {}` block only exposes `prettyPrintJson` — threshold properties such as `minLineCoverage` are not
+available at the root and produce a compile-time error if attempted. Coverage thresholds are enforced per leaf module.
+If you do not need pretty-printed aggregate JSON, you can omit `koverGate {}` at the root entirely.
+
 **Each submodule `build.gradle.kts`:**
 ```kotlin
 plugins {

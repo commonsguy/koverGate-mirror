@@ -414,4 +414,9 @@ Two refinements to staleness reporting:
 - The build-script staleness check is now explicitly labeled a **build-script timestamp heuristic** in both the `koverGateGenerateReport` warning and `koverGateDoctor` output. It compares the Kover XML's mtime to your build scripts' mtimes — a coarse proxy, not a guarantee.
 - A new **producer-reuse warning** fires when a module's `koverGateReport` gate runs (executes or fails) while Gradle served that module's `koverXmlReport*` task up-to-date or from cache. It is logged at build completion: `KoverGate freshness: the Kover XML for <module> was reused (UP_TO_DATE/FROM_CACHE) this build while its coverage gate ran; ... re-run with --rerun-tasks ...`. This catches the case where a verdict looks wrong because Gradle did not regenerate the Kover XML. Like the other freshness signals, it never fails the build.
 
-No action needed on upgrade; both are diagnostic-only.
+- Aggregate root projects now receive a minimal `RootCoverageGateExtension`. If you previously had threshold
+  properties (`minLineCoverage`, etc.) in `koverGate {}` at the root, they were silently ignored; now they produce a
+  compile error. Remove them from the root `koverGate {}` block — thresholds are enforced per leaf module only.
+
+No action needed on upgrade for the freshness signals; both are diagnostic-only. If you had threshold properties in a
+root `koverGate {}` block, remove them.

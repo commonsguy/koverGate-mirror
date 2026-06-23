@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The existing build-script staleness check is now explicitly labeled a **build-script timestamp heuristic** in both
   the `koverGateGenerateReport` freshness warning and the `koverGateDoctor` output, to make clear it is a coarse
   timestamp proxy rather than a definitive verdict. No behavior or JSON change.
+- Aggregate root projects now receive a minimal `RootCoverageGateExtension` (exposing only `prettyPrintJson`) instead
+  of the full `CoverageGateExtension`. Coverage thresholds were never enforced at the aggregate root — this change
+  makes that a compile-time DSL error: using `minLineCoverage`, `minBranchCoverage`, etc. in `koverGate {}` on a root
+  project now produces an "unresolved reference" at build-script compilation time.
 
 ## [0.4.0] - 2026-06-20
 

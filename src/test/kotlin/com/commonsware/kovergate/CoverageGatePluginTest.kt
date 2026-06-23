@@ -20,6 +20,7 @@ import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -129,5 +130,30 @@ class CoverageGatePluginTest {
 
     val ext = project.extensions.getByType(CoverageGateExtension::class.java)
     assertEquals("", ext.xmlReportTask.get())
+  }
+
+  @Test
+  fun `root-with-subprojects registers RootCoverageGateExtension not CoverageGateExtension`() {
+    val root = ProjectBuilder.builder().withName("root").build()
+
+    ProjectBuilder.builder().withParent(root).withName("child").build()
+    root.pluginManager.apply("com.commonsware.kovergate")
+
+    assertNotNull(root.extensions.findByType(RootCoverageGateExtension::class.java))
+    assertNull(root.extensions.findByType(CoverageGateExtension::class.java))
+  }
+
+  @Test
+  fun `root prettyPrintJson propagates to aggregate task`() {
+    val root = ProjectBuilder.builder().withName("root").build()
+
+    ProjectBuilder.builder().withParent(root).withName("child").build()
+    root.pluginManager.apply("com.commonsware.kovergate")
+
+    root.extensions.getByType(RootCoverageGateExtension::class.java).prettyPrintJson.set(true)
+
+    val task = root.tasks.getByName("koverGateReport") as KoverGateAggregateReportTask
+
+    assertTrue(task.prettyPrintJson.get())
   }
 }
