@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the module and the reuse outcome and suggests `--rerun-tasks`. It is implemented with a configuration-cache-safe
   build service that observes task outcomes and logs at build's end. Like all freshness signals, it never fails the
   build.
+- The gap report JSON now reports **partially covered lines** separately. Each file entry carries a `partiallyCoveredLines`
+  array — source lines with both covered and missed instructions (`ci > 0 && mi > 0`), mostly exercised but retaining a
+  residual that is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) rather than
+  untested logic. Each `missedBranchLines` entry also gains a `fullyInstructionCovered` boolean — `true` when every
+  instruction on the line is covered and only a branch arm is missed, a strong hint the arm is synthetic or unreachable.
 
 ### Changed
 
@@ -25,6 +30,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the full `CoverageGateExtension`. Coverage thresholds were never enforced at the aggregate root — this change
   makes that a compile-time DSL error: using `minLineCoverage`, `minBranchCoverage`, etc. in `koverGate {}` on a root
   project now produces an "unresolved reference" at build-script compilation time.
+- `uncoveredLines` in `gap-report.json` is now derived from **covered instructions** (`ci == 0`) rather than missed
+  instructions (`mi > 0`). A line that is partially covered — some instructions covered, some missed — is no longer
+  reported as uncovered; it moves to the new `partiallyCoveredLines` array. This aligns the per-file gap list with
+  Kover's module-level `LINE` counter (which already counts a partially covered line as covered), so the report no
+  longer contradicts the threshold it explains, nor sends developers to write tests for already-covered lines. The gate
+  pass/fail math is unchanged.
 
 ## [0.4.0] - 2026-06-20
 

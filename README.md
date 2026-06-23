@@ -306,17 +306,21 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
       "name": "Foo.kt",
       "package": "com/example",
       "uncoveredLines": [42, 57],
-      "missedBranchLines": [{ "line": 42, "missed": 1, "total": 2 }]
+      "missedBranchLines": [{ "line": 42, "missed": 1, "total": 2, "fullyInstructionCovered": false }],
+      "partiallyCoveredLines": [88]
     },
     {
       "name": "Bar.kt",
       "package": "com/example",
       "uncoveredLines": [113],
-      "missedBranchLines": []
+      "missedBranchLines": [],
+      "partiallyCoveredLines": []
     }
   ]
 }
 ```
+
+`uncoveredLines` lists only lines with **zero** covered instructions — genuinely never executed. A line that is partially covered (some instructions covered, some missed) appears in `partiallyCoveredLines` instead; its residual is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test can close. On each `missedBranchLines` entry, `fullyInstructionCovered: true` flags a line whose instructions are all covered and only a branch arm is missed — usually a synthetic or unreachable arm.
 
 > **Note:** Every leaf-module `gap-report.json` also carries a `source` provenance block (after `files`) recording which XML the numbers came from and whether it is stale. It is omitted from the example above for brevity — see [Report Provenance & Freshness](#report-provenance--freshness). The aggregate report carries the same block inside each entry of its `modules` array.
 

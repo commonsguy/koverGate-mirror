@@ -921,4 +921,68 @@ class CoverageGateFunctionalTest {
           .trimIndent()
       )
   }
+
+  @Test
+  fun `partially covered line is reported as partial not uncovered`() {
+    writeSettingsFile()
+    writeBuildFile(
+      """
+      koverGate {
+          minLineCoverage.set(0)
+          minBranchCoverage.set(0)
+          minInstructionCoverage.set(0)
+          minMethodCoverage.set(0)
+          minClassCoverage.set(0)
+      }
+      """
+        .trimIndent()
+    )
+    writePartialCoverageSource()
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+
+    val report = Json.decodeFromString<GapReport>(File(projectDir, "build/reports/kover/gap-report.json").readText())
+    val file = report.files.first { it.name == "Classifier.kt" }
+
+    assertTrue(file.partiallyCoveredLines.isNotEmpty(), "Expected a partially covered line; got $file")
+    assertTrue(file.uncoveredLines.isEmpty(), "Partially covered line must not be reported as uncovered; got $file")
+    assertTrue(
+      file.missedBranchLines.any { !it.fullyInstructionCovered },
+      "Expected a missed branch arm flagged as not fully instruction-covered; got ${file.missedBranchLines}",
+    )
+  }
+
+  private fun writePartialCoverageSource() {
+    val srcDir = File(projectDir, "src/main/kotlin/com/example")
+
+    srcDir.mkdirs()
+    File(srcDir, "Classifier.kt")
+      .writeText(
+        """
+        package com.example
+        class Classifier {
+            fun classify(n: Int): String = if (n > 0) "pos" else "neg"
+        }
+        """
+          .trimIndent()
+      )
+
+    val testDir = File(projectDir, "src/test/kotlin/com/example")
+
+    testDir.mkdirs()
+    File(testDir, "ClassifierTest.kt")
+      .writeText(
+        """
+        package com.example
+        import kotlin.test.Test
+        import kotlin.test.assertEquals
+        class ClassifierTest {
+            @Test fun positive() = assertEquals("pos", Classifier().classify(1))
+        }
+        """
+          .trimIndent()
+      )
+  }
 }

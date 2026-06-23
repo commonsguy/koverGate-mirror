@@ -25,8 +25,9 @@ After writing or modifying tests in a module, check coverage gaps and close them
 3. **Interpret results:**
    - If `"passed": true` — coverage requirements are met. Done.
    - If `"passed": false` — examine the `files` array. Each entry lists:
-     - `uncoveredLines`: line numbers with no coverage (`mi > 0`)
-     - `missedBranchLines`: per-line `{ line, missed, total }` objects for lines with partial branch coverage (`mb > 0`). A `missed`/`total` of `1/2` often marks an unreachable arm (refactor or accept); `2/2` is a genuinely untested branch (write a test)
+     - `uncoveredLines`: line numbers with **zero** covered instructions (`ci == 0`) — genuinely never executed; write tests for these
+     - `partiallyCoveredLines`: line numbers with both covered and missed instructions (`ci > 0 && mi > 0`) — mostly exercised; the residual is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test can close. Verify against the source before writing tests
+     - `missedBranchLines`: per-line `{ line, missed, total, fullyInstructionCovered }` objects for lines with partial branch coverage (`mb > 0`). A `missed`/`total` of `1/2` often marks an unreachable arm (refactor or accept); `2/2` is a genuinely untested branch (write a test). `fullyInstructionCovered: true` means every instruction on the line is covered and only a branch arm is missed — a strong hint the arm is synthetic or unreachable
 
 4. **Write targeted tests** to cover the identified lines and branches. Focus on:
    - The specific line numbers listed in `uncoveredLines`
@@ -174,6 +175,7 @@ koverGate {
 **Interpreting gaps in a merged report:**
 
 - A line in `uncoveredLines` means **neither** test type covers it — not just one.
+- A line in `partiallyCoveredLines` means the union of both suites covers some but not all of the line's instructions — often a synthetic duplicate mapping rather than a real gap.
 - A line in `missedBranchLines` means a branch at that line is missed by the union of both suites.
 - The fix may be a unit test *or* an instrumented test depending on what the code path needs:
   - Pure Kotlin/JVM logic → add a unit test in `src/test/`.

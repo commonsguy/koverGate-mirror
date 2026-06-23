@@ -28,8 +28,15 @@ internal data class Counter(val missed: Int, val covered: Int)
  * @property line the 1-based source line number containing the branches
  * @property missed the number of branches on this line with no coverage
  * @property total the total number of branches on this line (missed plus covered)
+ * @property fullyInstructionCovered true when the line's instructions are all covered (`mi == 0`), so the missed branch
+ *   arm is the only gap — frequently a synthetic or unreachable arm rather than untested logic
  */
-internal data class BranchLine(val line: Int, val missed: Int, val total: Int)
+internal data class BranchLine(
+  val line: Int,
+  val missed: Int,
+  val total: Int,
+  val fullyInstructionCovered: Boolean = false,
+)
 
 internal data class FileCoverage(
   val name: String,
@@ -38,6 +45,7 @@ internal data class FileCoverage(
   val branchLines: List<BranchLine> = emptyList(),
   val missedBranches: Int = 0,
   val totalBranches: Int = 0,
+  val partiallyCoveredLines: List<Int> = emptyList(),
 )
 
 internal data class ParseResult(val moduleCounters: Map<CoverageMetric, Counter>, val files: List<FileCoverage>)
@@ -93,37 +101,27 @@ internal object XmlReportParser {
 
   private fun parseSourceFile(sf: Element, packageName: String): FileCoverage {
     val uncoveredLines = mutableListOf<Int>()
+    val partiallyCoveredLines = mutableListOf<Int>()
     val branchLines = mutableListOf<BranchLine>()
     val lines = sf.getElementsByTagName("line")
 
     for (i in 0 until lines.length) {
       val line = lines.item(i) as Element
       val nr = line.getAttribute("nr").toInt()
+      val mi = line.getAttribute("mi").toIntOrNull() ?: 0
+      val ci = line.getAttribute("ci").toIntOrNull() ?: 0
       val missed = line.getAttribute("mb").toIntOrNull() ?: 0
       val covered = line.getAttribute("cb").toIntOrNull() ?: 0
 
-      if ((line.getAttribute("mi").toIntOrNull() ?: 0) > 0) uncoveredLines += nr
-
-      if (missed > 0) branchLines += BranchLine(nr, missed, missed + covered)
-    }
-
-    // Read file-level BRANCH counter for the "(N of M)" display in console
-    // output
-    var missedBranches = 0
-    var totalBranches = 0
-    val counters = sf.getElementsByTagName("counter")
-
-    for (i in 0 until counters.length) {
-      val c = counters.item(i) as Element
-
-      if (c.getAttribute("type") == "BRANCH") {
-        val missed = c.getAttribute("missed").toIntOrNull() ?: 0
-        val covered = c.getAttribute("covered").toIntOrNull() ?: 0
-        missedBranches = missed
-        totalBranches = missed + covered
-        break
+      when {
+        mi > 0 && ci == 0 -> uncoveredLines += nr
+        mi > 0 -> partiallyCoveredLines += nr
       }
+
+      if (missed > 0) branchLines += BranchLine(nr, missed, missed + covered, fullyInstructionCovered = mi == 0)
     }
+
+    val (missedBranches, totalBranches) = parseBranchCounter(sf)
 
     return FileCoverage(
       name = sf.getAttribute("name"),
@@ -132,6 +130,24 @@ internal object XmlReportParser {
       branchLines = branchLines.sortedBy { it.line },
       missedBranches = missedBranches,
       totalBranches = totalBranches,
+      partiallyCoveredLines = partiallyCoveredLines.sorted(),
     )
+  }
+
+  private fun parseBranchCounter(sf: Element): Pair<Int, Int> {
+    val counters = sf.getElementsByTagName("counter")
+
+    for (i in 0 until counters.length) {
+      val c = counters.item(i) as Element
+
+      if (c.getAttribute("type") == "BRANCH") {
+        val missed = c.getAttribute("missed").toIntOrNull() ?: 0
+        val covered = c.getAttribute("covered").toIntOrNull() ?: 0
+
+        return Pair(missed, missed + covered)
+      }
+    }
+
+    return Pair(0, 0)
   }
 }

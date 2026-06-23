@@ -359,4 +359,53 @@ class KoverGateReportTaskTest {
     val report = parseJson(json)
     assertEquals(":m", report.module)
   }
+
+  @Test
+  fun `JSON files array includes partially covered lines`() {
+    val files = listOf(FileCoverage("Foo.kt", "com/example", listOf(45), partiallyCoveredLines = listOf(60, 61)))
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = emptyMap(),
+            filesWithGaps = files,
+            prettyPrint = false,
+          )
+        )
+      )
+
+    assertEquals(listOf(60, 61), report.files[0].partiallyCoveredLines)
+  }
+
+  @Test
+  fun `JSON missed branch carries fullyInstructionCovered flag`() {
+    val files =
+      listOf(
+        FileCoverage("Foo.kt", "com/example", emptyList(), listOf(BranchLine(42, 1, 2, fullyInstructionCovered = true)))
+      )
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = emptyMap(),
+            filesWithGaps = files,
+            prettyPrint = false,
+          )
+        )
+      )
+
+    assertTrue(report.files[0].missedBranchLines[0].fullyInstructionCovered)
+  }
+
+  @Test
+  fun `console output lists partially covered lines`() {
+    val files = listOf(FileCoverage("Foo.kt", "com/example", emptyList(), partiallyCoveredLines = listOf(36, 37)))
+    val output = buildConsoleOutput(":m", emptyMap(), files, passed = false)
+
+    assertTrue(output.contains("Lines 36, 37 partially covered"))
+  }
 }

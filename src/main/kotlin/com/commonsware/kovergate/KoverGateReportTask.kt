@@ -118,6 +118,11 @@ internal fun buildConsoleOutput(
         appendLine("    $plural ${file.uncoveredLines.joinToString(", ")} uncovered")
       }
 
+      if (file.partiallyCoveredLines.isNotEmpty()) {
+        val plural = if (file.partiallyCoveredLines.size == 1) "Line" else "Lines"
+        appendLine("    $plural ${file.partiallyCoveredLines.joinToString(", ")} partially covered")
+      }
+
       if (file.branchLines.isNotEmpty()) {
         val countSuffix = if (file.totalBranches > 0) " (${file.missedBranches} of ${file.totalBranches})" else ""
         val rendered = file.branchLines.joinToString(", ") { "${it.line} (${it.missed}/${it.total})" }
@@ -176,7 +181,8 @@ internal fun buildJsonOutput(params: JsonOutputParams): String {
             file.name,
             file.packageName,
             file.uncoveredLines,
-            file.branchLines.map { BranchGap(it.line, it.missed, it.total) },
+            file.branchLines.map { BranchGap(it.line, it.missed, it.total, it.fullyInstructionCovered) },
+            file.partiallyCoveredLines,
           )
         },
       source = source,
@@ -278,7 +284,10 @@ public abstract class KoverGateReportTask : DefaultTask() {
         }
 
     val overallPassed = metricResults.values.all { it.passed }
-    val filesWithGaps = parseResult.files.filter { it.uncoveredLines.isNotEmpty() || it.branchLines.isNotEmpty() }
+    val filesWithGaps =
+      parseResult.files.filter {
+        it.uncoveredLines.isNotEmpty() || it.partiallyCoveredLines.isNotEmpty() || it.branchLines.isNotEmpty()
+      }
     val buildScriptTimes = buildScripts.files.filter { it.exists() }.map { it.lastModified() }
     val provenance = computeProvenance(xmlFile.absolutePath, xmlFile.lastModified(), buildScriptTimes)
 

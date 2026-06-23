@@ -72,6 +72,9 @@ public data class MetricJson(
  * @param packageName the package of the file (e.g., "com.example.app"), serialized as the JSON key `"package"`
  * @param uncoveredLines line numbers within the file that have no coverage
  * @param missedBranchLines per-line branch detail (missed of total) for lines with at least one missed branch
+ * @param partiallyCoveredLines line numbers with both covered and missed instructions — mostly exercised, the residual
+ *   often produced by synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test
+ *   can close
  */
 @Serializable
 public data class FileGap(
@@ -79,6 +82,7 @@ public data class FileGap(
   @SerialName("package") val packageName: String,
   val uncoveredLines: List<Int>,
   val missedBranchLines: List<BranchGap>,
+  val partiallyCoveredLines: List<Int> = emptyList(),
 )
 
 /**
@@ -88,8 +92,16 @@ public data class FileGap(
  * @param line the 1-based source line number containing the branches
  * @param missed the number of branches on this line with no coverage
  * @param total the total number of branches on this line (missed plus covered)
+ * @param fullyInstructionCovered true when every instruction on the line is covered (`mi == 0`) and only a branch arm
+ *   is missed — frequently a synthetic or unreachable arm rather than untested logic
  */
-@Serializable public data class BranchGap(val line: Int, val missed: Int, val total: Int)
+@Serializable
+public data class BranchGap(
+  val line: Int,
+  val missed: Int,
+  val total: Int,
+  val fullyInstructionCovered: Boolean = false,
+)
 
 /**
  * Top-level structure for the root-level aggregate gap-report.json in multi-module projects.
