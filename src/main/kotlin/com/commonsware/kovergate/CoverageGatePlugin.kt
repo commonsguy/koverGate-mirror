@@ -134,6 +134,8 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
 
     registerScopedReport(project, extension, gapReportProvider, generateTaskProvider)
 
+    registerBumpTask(project, gapReportProvider, generateTaskProvider)
+
     val doctorTaskProvider = registerDoctorReport(project, extension)
 
     project.afterEvaluate {
@@ -179,7 +181,7 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
         scope.convention(ScopeType.BRANCH.name.lowercase())
         gapReportFile.set(gapReportProvider)
         scopedReportFile.set(project.layout.buildDirectory.file("reports/kover/scoped-gap-report.json"))
-        sourceRoots.from(mainSourceRoots(project))
+        sourceRoots.from(listOf(project.file("src/main/kotlin"), project.file("src/main/java")))
         dependsOn(generateTaskProvider)
       }
 
@@ -190,6 +192,22 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
           parameters.baseRef.set(baseRef)
         }
       )
+    }
+  }
+
+  private fun registerBumpTask(
+    project: Project,
+    gapReportProvider: org.gradle.api.provider.Provider<org.gradle.api.file.RegularFile>,
+    generateTaskProvider: org.gradle.api.tasks.TaskProvider<KoverGateReportTask>,
+  ) {
+    project.tasks.register("koverGateBump", KoverGateBumpTask::class.java) {
+      group = "verification"
+      description = "Suggests updated koverGate {} thresholds from the current coverage report (ratchets up by default)"
+      projectPath.set(project.path)
+      gapReportFile.set(gapReportProvider)
+      margin.convention("0")
+      allowLower.convention(false)
+      dependsOn(generateTaskProvider)
     }
   }
 
@@ -220,9 +238,6 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
       buildScripts.from(buildScriptFiles(project))
       resolvedExcludes.set(project.provider { extension.coverageContributions.flatMap { it.excludePackages } })
     }
-
-  private fun mainSourceRoots(project: Project): List<java.io.File> =
-    listOf(project.file("src/main/kotlin"), project.file("src/main/java"))
 
   /**
    * Returns the build scripts whose modification times the generate and doctor tasks compare against the Kover XML to

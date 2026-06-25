@@ -422,3 +422,28 @@ Two refinements to staleness reporting:
 
 No action needed on upgrade for the freshness signals; both are diagnostic-only. If you had threshold properties in a
 root `koverGate {}` block, remove them.
+
+## Ratcheting Thresholds Up (`koverGateBump`)
+
+After you close gaps and a module's coverage rises above its configured thresholds, lock the gains in by raising the
+thresholds. The `koverGateBump` task does the arithmetic for you:
+
+```bash
+./gradlew :<module-name>:koverGateBump
+```
+
+It reads the module's current `gap-report.json` and prints the `min<Metric>Coverage.set(N)` lines to merge into the
+module's existing `koverGate {}` block — one per metric whose threshold should change, each annotated with its prior
+value. Interpreting and using the output:
+
+- Each suggestion is `floor(coverage) - margin`, clamped to `0..100`. By default the task only suggests **raising**
+  thresholds; a metric whose coverage fell is left untouched.
+- Paste only the printed `min<Metric>Coverage.set(N)` lines into the existing block. The task never emits a whole
+  `koverGate {}` block and never edits build scripts, so it cannot disturb other settings (e.g. `xmlReportFile`,
+  `attributeCoverageFrom`).
+- Pass `--allow-lower` to also emit suggestions that lower a threshold (use deliberately — this relaxes the gate).
+- Pass `--margin=<n>` to leave `n` percentage points of headroom below measured coverage, reducing flakiness from
+  coverage jitter.
+- Metrics disabled via `disabledMetrics` are omitted from the report and therefore never suggested.
+
+This task never fails the build; it only prints suggestions.

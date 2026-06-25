@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   residual that is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) rather than
   untested logic. Each `missedBranchLines` entry also gains a `fullyInstructionCovered` boolean — `true` when every
   instruction on the line is covered and only a branch arm is missed, a strong hint the arm is synthetic or unreachable.
+- A new **`koverGateBump`** task that prints suggested `koverGate {}` threshold updates derived from a module's
+  current gap report — one `min<Metric>Coverage.set(N)` line per metric, computed as `floor(coverage) - margin` and
+  annotated with its prior value, ready to merge into the existing block. It ratchets up by default (only metrics whose
+  coverage now exceeds their threshold); pass `--allow-lower` to also emit reductions and `--margin=<n>` to leave
+  headroom. Disabled metrics are skipped, it emits only the threshold lines (never a whole block), it never edits build
+  scripts, and it never fails the build.
 
 ### Changed
 

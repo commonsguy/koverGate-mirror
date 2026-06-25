@@ -516,6 +516,42 @@ Excluded packages (attributeCoverageFrom):
   (none)
 ```
 
+### `koverGateBump`
+
+To ratchet a module's coverage thresholds up as it improves, run:
+
+```bash
+./gradlew :<module>:koverGateBump
+```
+
+It reads the module's current gap report and prints the `koverGate {}` threshold lines worth changing — one
+`min<Metric>Coverage.set(N)` line per metric, computed from measured coverage and annotated with its prior value — for
+you to merge into your existing block:
+
+```
+# koverGate: suggested threshold updates for :your-module
+# Merge these lines into your existing koverGate { } block:
+
+  minLineCoverage.set(92)     // was 85
+  minBranchCoverage.set(88)   // was 80
+```
+
+It emits only these threshold lines, never a whole `koverGate {}` block — so it can never clobber the rest of your
+configuration (such as `xmlReportFile` or `attributeCoverageFrom`). It does not edit your build scripts; you paste the
+lines yourself.
+
+Each suggested threshold is `floor(coverage) - margin`, clamped to `0..100`, so the suggested gate always keeps headroom
+and cannot fail against the very report that produced it. By default the task only suggests **raising** a threshold
+(ratcheting up); a metric whose coverage dropped is left alone. Two options adjust this:
+
+- `--allow-lower` also emits suggestions that **lower** a threshold. Without it, the task reports how many reductions it
+  withheld, so lowering a gate stays a deliberate act.
+- `--margin=<n>` subtracts `n` extra percentage points from every suggestion, trading some ratchet strictness for
+  resilience against coverage jitter across compiler or dependency bumps. For example, `--margin=2` on 92% coverage
+  suggests `90`.
+
+Metrics disabled via `disabledMetrics` are skipped (the gap report omits them). The task never fails the build.
+
 ## Cross-Module Coverage Attribution
 
 Sometimes one module's tests exercise another module's code — the common
