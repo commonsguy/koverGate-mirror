@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.5.0] - 2026-06-27
+
+### BREAKING CHANGES
+
+- Aggregate root projects now receive a minimal `RootCoverageGateExtension` (exposing only `prettyPrintJson`) instead
+  of the full `CoverageGateExtension`. Coverage thresholds were never enforced at the aggregate root. **This change
+  makes that a compile-time DSL error**: using `minLineCoverage`, `minBranchCoverage`, etc. in `koverGate {}` on a root
+  project now produces an "unresolved reference" at build-script compilation time.
 
 ### Added
 
@@ -20,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   residual that is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) rather than
   untested logic. Each `missedBranchLines` entry also gains a `fullyInstructionCovered` boolean — `true` when every
   instruction on the line is covered and only a branch arm is missed, a strong hint the arm is synthetic or unreachable.
-- A new **`koverGateBump`** task that prints suggested `koverGate {}` threshold updates derived from a module's
+- A new **`koverGateBump`** Gradle task that prints suggested `koverGate {}` threshold updates derived from a module's
   current gap report — one `min<Metric>Coverage.set(N)` line per metric, computed as `floor(coverage) - margin` and
   annotated with its prior value, ready to merge into the existing block. It ratchets up by default (only metrics whose
   coverage now exceeds their threshold); pass `--allow-lower` to also emit reductions and `--margin=<n>` to leave
@@ -32,10 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The existing build-script staleness check is now explicitly labeled a **build-script timestamp heuristic** in both
   the `koverGateGenerateReport` freshness warning and the `koverGateDoctor` output, to make clear it is a coarse
   timestamp proxy rather than a definitive verdict. No behavior or JSON change.
-- Aggregate root projects now receive a minimal `RootCoverageGateExtension` (exposing only `prettyPrintJson`) instead
-  of the full `CoverageGateExtension`. Coverage thresholds were never enforced at the aggregate root — this change
-  makes that a compile-time DSL error: using `minLineCoverage`, `minBranchCoverage`, etc. in `koverGate {}` on a root
-  project now produces an "unresolved reference" at build-script compilation time.
 - `uncoveredLines` in `gap-report.json` is now derived from **covered instructions** (`ci == 0`) rather than missed
   instructions (`mi > 0`). A line that is partially covered — some instructions covered, some missed — is no longer
   reported as uncovered; it moves to the new `partiallyCoveredLines` array. This aligns the per-file gap list with
@@ -139,6 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
+[0.5.0]: https://codeberg.org/commonsguy/koverGate/compare/0.4.0...0.5.0
 [0.4.0]: https://codeberg.org/commonsguy/koverGate/compare/0.3.0...0.4.0
 [0.3.0]: https://codeberg.org/commonsguy/koverGate/compare/0.2.0...0.3.0
 [0.2.0]: https://codeberg.org/commonsguy/koverGate/compare/0.1.3...0.2.0
