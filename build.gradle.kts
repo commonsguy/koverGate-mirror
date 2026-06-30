@@ -11,6 +11,7 @@ plugins {
   kotlin("plugin.serialization")
   alias(libs.plugins.ktfmt.gradle)
   alias(libs.plugins.plugin.publish)
+  alias(libs.plugins.sort.dependencies)
 }
 
 group = "com.commonsware.kovergate"
@@ -44,6 +45,11 @@ ktfmt {
   maxWidth.set(120)
 }
 
+sortDependencies {
+  insertBlankLines = true
+  check(true)
+}
+
 // Functional test source set
 val functionalTestSourceSet =
   sourceSets.create("functionalTest") {
@@ -57,10 +63,13 @@ configurations["functionalTestRuntimeOnly"].extendsFrom(configurations["testRunt
 
 dependencies {
   add("functionalTestImplementation", libs.kotlinx.serialization.json)
+
   implementation(libs.kotlinx.serialization.json)
+
   testImplementation(libs.junit.jupiter)
-  testImplementation(libs.kotlinx.serialization.json)
   testImplementation(libs.kotlinx.kover.gradle.plugin)
+  testImplementation(libs.kotlinx.serialization.json)
+
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 

@@ -8,6 +8,7 @@ kotlinx-serialization = "1.11.0"
 kover = "0.9.8"
 kovergate = "0.5.0"
 ktfmt-gradle = "0.26.0"
+sort-dependencies = "0.19.0"
 
 [libraries]
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
@@ -23,3 +24,4 @@ dokka-javadoc = { id = "org.jetbrains.dokka-javadoc", version.ref = "dokka" }
 kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 ktfmt-gradle = { id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt-gradle" }
 plugin-publish = { id = "com.gradle.plugin-publish", version = "2.1.1" }
+sort-dependencies = { id = "com.squareup.sort-dependencies", version.ref = "sort-dependencies" }
