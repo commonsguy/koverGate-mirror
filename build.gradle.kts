@@ -80,9 +80,10 @@ val functionalTest by
     useJUnitPlatform()
   }
 
-tasks.check { dependsOn(functionalTest) }
-
-tasks.check { dependsOn("detekt") }
+tasks.check {
+  dependsOn(functionalTest)
+  dependsOn("detekt")
+}
 
 tasks.named<Jar>("javadocJar") {
   val dokkaJavadoc = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationJavadoc")
