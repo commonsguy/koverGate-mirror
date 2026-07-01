@@ -80,9 +80,17 @@ val functionalTest by
     useJUnitPlatform()
   }
 
-tasks.check {
-  dependsOn(functionalTest)
-  dependsOn("detekt")
+tasks.check { dependsOn("checkSortDependencies") }
+
+tasks.check { dependsOn("detekt") }
+
+tasks.check { dependsOn(functionalTest) }
+
+tasks.check { dependsOn("ktfmtCheck") }
+
+tasks.register("cleanup") {
+  dependsOn("ktfmtFormat", "sortDependencies")
+  finalizedBy("check")
 }
 
 tasks.named<Jar>("javadocJar") {
