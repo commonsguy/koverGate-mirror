@@ -88,10 +88,14 @@ tasks.check { dependsOn(functionalTest) }
 
 tasks.check { dependsOn("ktfmtCheck") }
 
+val formatTasks = listOf("ktfmtFormat", "sortDependencies")
+
 tasks.register("cleanup") {
-  dependsOn("ktfmtFormat", "sortDependencies")
-  finalizedBy("check")
+  description = "Perform mechanical reformatting, then check the project"
+  dependsOn(formatTasks + "check")
 }
+
+tasks.named("check") { mustRunAfter(formatTasks) }
 
 tasks.named<Jar>("javadocJar") {
   val dokkaJavadoc = tasks.named<DokkaGeneratePublicationTask>("dokkaGeneratePublicationJavadoc")
