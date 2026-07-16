@@ -587,6 +587,52 @@ Notes:
 - `excludePackages` defaults to empty; omit it only if you want the
   contributing module's classes counted against this module's gate too.
 
+## Excluding Classes from Coverage
+
+Some classes should never count against a module's gate — generated code, test fixtures shipped
+in `main`, or other artifacts your own tests are not meant to exercise. `excludes {}` filters them
+out **before** coverage is computed, so both the pass/fail verdict and the gap report reflect only
+the classes you actually want gated:
+
+```kotlin
+koverGate {
+    excludes {
+        classes("*.Fixture*", "com.example.generated.BuildConfig")
+        packages("com.example.generated")
+    }
+}
+```
+
+- `classes(vararg String)` / `classes(Iterable<String>)` take one or more class-name patterns.
+- `packages(vararg String)` / `packages(Iterable<String>)` exclude every class in the named
+  package (and its sub-packages) — `packages("com.example.generated")` is shorthand for
+  `classes("com.example.generated.*")`.
+
+Patterns are matched against a class's fully-qualified dotted name (e.g. `com.example.Widget`),
+using the same wildcard rules as Kover itself:
+
+| Symbol | Meaning |
+|---|---|
+| `*` | any characters, **including dots** — crosses package boundaries |
+| `?` | exactly one arbitrary character |
+| `#` | any characters **except** dots — stays within one package segment |
+
+The pattern must match the entire fully-qualified name (not just a substring).
+
+**Copying from `kover {}`:** if you already have a `kover { reports { excludes { ... } } }` block,
+you can copy its `classes(...)` and `packages(...)` lines into `koverGate { excludes { ... } }`
+almost verbatim — same method names, same wildcard semantics. The one exception is
+`annotatedBy(...)`: KoverGate's XML-based report has no per-class annotation data, so
+`annotatedBy(...)` is not supported inside `koverGate { excludes { } }`. Leave any `annotatedBy(...)`
+lines in the `kover {}` block; if you accidentally paste one into `koverGate { excludes { } }`, the
+build fails at script-compilation time with an "unresolved reference" error rather than silently
+ignoring it.
+
+Unlike `kover {}`'s own excludes, `koverGate`'s `excludes {}` is applied by KoverGate itself while
+reading the Kover XML — it does not depend on Kover's excludes surviving into the report, so it
+works even under the Gradle configuration cache and even when the report comes from an external
+`xmlReportFile` (see [Android: Merging Unit + Instrumented Coverage](#android-merging-unit--instrumented-coverage)).
+
 ## Teaching Your Agent to Use KoverGate
 
 KoverGate ships with a ready-made skill that tells AI coding agents how to run the coverage gate, read the JSON report, and write targeted tests to close the gaps.

@@ -17,6 +17,7 @@
 package com.commonsware.kovergate
 
 import javax.inject.Inject
+import org.gradle.api.Action
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
@@ -27,7 +28,7 @@ import org.gradle.api.provider.SetProperty
  * checked by the `koverGateReport` task. All thresholds default to `100` (full coverage required). Lower a threshold or
  * disable a metric entirely for modules where 100% is not the right target.
  */
-public abstract class CoverageGateExtension @Inject constructor(objects: ObjectFactory) {
+public abstract class CoverageGateExtension @Inject constructor(private val objects: ObjectFactory) {
   /** Constant representing full coverage threshold. */
   public companion object {
     public const val FULL_COVERAGE: Int = 100
@@ -125,6 +126,88 @@ public abstract class CoverageGateExtension @Inject constructor(objects: ObjectF
   @JvmOverloads
   public fun attributeCoverageFrom(modulePath: String, excludePackages: List<String> = emptyList()) {
     coverageContributions += CoverageContribution(modulePath, excludePackages)
+    excludePatterns.addAll(excludePackages.map { "$it.*" })
+  }
+
+  /**
+   * Kover-style class-name wildcard patterns to exclude from this module's coverage, populated by [excludes] and by
+   * [attributeCoverageFrom]'s [CoverageContribution.excludePackages]. Applied at parse time, independent of whatever
+   * exclusions Kover itself was configured with, so the gate's verdict does not depend on Kover's own filters surviving
+   * to the XML it wrote.
+   */
+  internal val excludePatterns: SetProperty<String> = objects.setProperty(String::class.java).convention(emptySet())
+
+  /**
+   * Configures [excludePatterns] via a nested [ExclusionSpec], using the same method names and wildcard syntax as
+   * Kover's own `kover { reports { filters { excludes { ... } } } }` block — copy a Kover `excludes {}` body here
+   * almost verbatim (only `annotatedBy(...)` has no equivalent, since class-level annotations are not present in the
+   * Kover/JaCoCo XML this reads).
+   *
+   * ```
+   * koverGate {
+   *     excludes {
+   *         classes("*.Fixture*")
+   *         packages("com.foo.generated")
+   *     }
+   * }
+   * ```
+   *
+   * @param action configures the [ExclusionSpec] whose accumulated patterns are added to [excludePatterns]
+   */
+  public fun excludes(action: Action<ExclusionSpec>) {
+    val spec = objects.newInstance(ExclusionSpec::class.java)
+
+    action.execute(spec)
+    excludePatterns.addAll(spec.patterns)
+  }
+}
+
+/**
+ * Nested DSL for [CoverageGateExtension.excludes], accumulating Kover-style class-name wildcard patterns matched
+ * against a class's fully-qualified dotted name.
+ */
+public abstract class ExclusionSpec @Inject constructor(objects: ObjectFactory) {
+  /** The class-name wildcard patterns accumulated by [classes] and [packages]. */
+  internal val patterns: SetProperty<String> = objects.setProperty(String::class.java).convention(emptySet())
+
+  /**
+   * Excludes classes whose fully-qualified dotted name matches any of [classPatterns], using Kover's `*`/`?`/`#`
+   * wildcard syntax (`*` crosses package boundaries, `?` matches one character, `#` matches within one package
+   * segment).
+   *
+   * @param classPatterns the Kover-style wildcard patterns to exclude by
+   */
+  public fun classes(vararg classPatterns: String) {
+    patterns.addAll(*classPatterns)
+  }
+
+  /**
+   * Excludes classes whose fully-qualified dotted name matches any of [classPatterns]; see [classes] for the wildcard
+   * syntax.
+   *
+   * @param classPatterns the Kover-style wildcard patterns to exclude by
+   */
+  public fun classes(classPatterns: Iterable<String>) {
+    patterns.addAll(classPatterns)
+  }
+
+  /**
+   * Excludes every class in [packageNames] and their sub-packages, desugaring each package name to the class pattern
+   * `"$packageName.*"` — identical to Kover's own `packageAsClass()` desugaring.
+   *
+   * @param packageNames the fully-qualified package names to exclude
+   */
+  public fun packages(vararg packageNames: String) {
+    patterns.addAll(packageNames.map { "$it.*" })
+  }
+
+  /**
+   * Excludes every class in [packageNames] and their sub-packages; see [packages] for the desugaring.
+   *
+   * @param packageNames the fully-qualified package names to exclude
+   */
+  public fun packages(packageNames: Iterable<String>) {
+    patterns.addAll(packageNames.map { "$it.*" })
   }
 }
 

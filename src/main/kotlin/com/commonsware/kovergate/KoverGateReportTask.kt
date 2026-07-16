@@ -16,6 +16,7 @@
 
 package com.commonsware.kovergate
 
+import java.io.File
 import kotlin.math.roundToInt
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -221,6 +222,13 @@ public abstract class KoverGateReportTask : DefaultTask() {
   @get:Input public abstract val disabledMetrics: SetProperty<CoverageMetric>
 
   /**
+   * Kover-style class-name wildcard patterns to exclude from coverage at parse time, from
+   * [CoverageGateExtension.excludePatterns]. Applied independent of whatever exclusions Kover itself was configured
+   * with, so the gate does not depend on Kover's own filters surviving to the XML this task reads.
+   */
+  @get:Input public abstract val excludePatterns: SetProperty<String>
+
+  /**
    * Whether to pretty-print the JSON gap report output.
    *
    * When `true`, the JSON is formatted with indentation for human readability. When `false` (the default), compact JSON
@@ -256,7 +264,7 @@ public abstract class KoverGateReportTask : DefaultTask() {
       )
     }
 
-    val parseResult = XmlReportParser.parse(xmlFile)
+    val parseResult = parseFilteredResult(xmlFile)
     val disabled = disabledMetrics.get()
     val thresholds =
       mapOf(
@@ -318,5 +326,12 @@ public abstract class KoverGateReportTask : DefaultTask() {
     if (freshnessWarning != null) {
       logger.warn(freshnessWarning)
     }
+  }
+
+  /** Parses [xmlFile] and filters it by [excludePatterns] via [ClassNameExclusionMatcher] and [CoverageAggregator]. */
+  private fun parseFilteredResult(xmlFile: File): ParseResult {
+    val matcher = ClassNameExclusionMatcher(excludePatterns.get())
+
+    return CoverageAggregator.aggregate(XmlReportParser.parse(xmlFile), matcher)
   }
 }

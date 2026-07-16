@@ -269,6 +269,10 @@ Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear
 - Disable metrics that don't apply with `disabledMetrics.set(setOf(CoverageMetric.BRANCH))`.
 - The JSON report is always written (even on pass) at `build/reports/kover/gap-report.json` for each leaf module.
 - The aggregate report at root is only written when all submodule tasks succeed.
+- If generated code, test fixtures shipped in `main`, or other classes you don't intend to gate show up
+  as uncovered in the report, don't write tests for them — exclude them instead with `koverGate { excludes { classes(...); packages(...) } }`. This filters those classes out before coverage is computed, so
+  they never appear in the gap report or affect the pass/fail verdict. See **Excluding Classes from
+  Coverage** in the README for wildcard syntax and the `annotatedBy` limitation.
 
 ## Attributed coverage (cross-module)
 

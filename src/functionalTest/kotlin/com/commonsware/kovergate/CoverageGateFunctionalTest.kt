@@ -206,6 +206,50 @@ class CoverageGateFunctionalTest {
   }
 
   @Test
+  fun `excludes filters an unrelated generated class out of the gate`() {
+    writeSettingsFile()
+    writeBuildFile(
+      """
+      koverGate {
+          excludes { packages("com.example.generated") }
+      }
+      """
+        .trimIndent()
+    )
+    writeSourceFile(covered = true)
+    writeGeneratedSourceFile()
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+    assertTrue(result.output.contains("Coverage gate PASSED"))
+
+    val report = Json.decodeFromString<GapReport>(File(projectDir, "build/reports/kover/gap-report.json").readText())
+
+    assertTrue(report.passed)
+    assertTrue(
+      report.files.none { it.name == "Fixture.kt" },
+      "Excluded generated class should not appear in the gap report; got ${report.files.map { it.name }}",
+    )
+  }
+
+  private fun writeGeneratedSourceFile() {
+    val srcDir = File(projectDir, "src/main/kotlin/com/example/generated")
+
+    srcDir.mkdirs()
+    File(srcDir, "Fixture.kt")
+      .writeText(
+        """
+        package com.example.generated
+        class Fixture {
+            fun untested(): Int = 42
+        }
+        """
+          .trimIndent()
+      )
+  }
+
+  @Test
   fun `custom thresholds are respected`() {
     writeSettingsFile()
     // Lower thresholds so partial coverage passes

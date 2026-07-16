@@ -81,4 +81,21 @@ class CoverageGateExtensionTest {
   fun `xmlReportFile is absent by default`() {
     assertFalse(ext.xmlReportFile.isPresent)
   }
+
+  @Test
+  fun `excludes classes and packages accumulate into excludePatterns`() {
+    ext.excludes {
+      classes("*.Fixture*")
+      packages("com.foo.generated")
+    }
+
+    assertEquals(setOf("*.Fixture*", "com.foo.generated.*"), ext.excludePatterns.get())
+  }
+
+  @Test
+  fun `attributeCoverageFrom folds excludePackages into excludePatterns`() {
+    ext.attributeCoverageFrom(":m", excludePackages = listOf("com.foo.gen"))
+
+    assertEquals(setOf("com.foo.gen.*"), ext.excludePatterns.get())
+  }
 }

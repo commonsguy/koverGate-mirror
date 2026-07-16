@@ -48,7 +48,26 @@ internal data class FileCoverage(
   val partiallyCoveredLines: List<Int> = emptyList(),
 )
 
-internal data class ParseResult(val moduleCounters: Map<CoverageMetric, Counter>, val files: List<FileCoverage>)
+/**
+ * Per-class coverage, parsed from a `<class>` element's own (non-nested) counters.
+ *
+ * @property fqcn the class's fully-qualified dotted name, e.g. `com.example.Widget`
+ * @property sourcefilename the source file name the class was compiled from, e.g. `Widget.kt`
+ * @property packageName the slash-separated package name, matching [FileCoverage.packageName]
+ * @property counters this class's own coverage counters, keyed by metric
+ */
+internal data class ClassCoverage(
+  val fqcn: String,
+  val sourcefilename: String,
+  val packageName: String,
+  val counters: Map<CoverageMetric, Counter>,
+)
+
+internal data class ParseResult(
+  val moduleCounters: Map<CoverageMetric, Counter>,
+  val files: List<FileCoverage>,
+  val classes: List<ClassCoverage> = emptyList(),
+)
 
 internal object XmlReportParser {
   internal fun parse(xmlFile: File): ParseResult {
@@ -62,12 +81,22 @@ internal object XmlReportParser {
     val doc = factory.newDocumentBuilder().parse(xmlFile)
     val root = doc.documentElement
 
-    return ParseResult(moduleCounters = parseModuleCounters(root), files = parseFiles(root))
+    return ParseResult(
+      moduleCounters = parseModuleCounters(root),
+      files = parseFiles(root),
+      classes = parseClasses(root),
+    )
   }
 
-  private fun parseModuleCounters(root: Element): Map<CoverageMetric, Counter> {
+  private fun parseModuleCounters(root: Element): Map<CoverageMetric, Counter> = parseDirectCounters(root)
+
+  /**
+   * Reads only the `<counter>` elements that are direct children of [element], ignoring counters nested inside
+   * descendant elements (e.g. a `<class>` element's own counters versus its child `<method>` counters).
+   */
+  private fun parseDirectCounters(element: Element): Map<CoverageMetric, Counter> {
     val counters = mutableMapOf<CoverageMetric, Counter>()
-    val children = root.childNodes
+    val children = element.childNodes
 
     for (i in 0 until children.length) {
       val node = children.item(i)
@@ -80,6 +109,38 @@ internal object XmlReportParser {
     }
 
     return counters
+  }
+
+  private fun parseClasses(root: Element): List<ClassCoverage> {
+    val classes = mutableListOf<ClassCoverage>()
+    val packages = root.getElementsByTagName("package")
+
+    for (i in 0 until packages.length) {
+      val pkg = packages.item(i) as Element
+      val packageName = pkg.getAttribute("name")
+      val classNodes = pkg.childNodes
+
+      for (j in 0 until classNodes.length) {
+        val node = classNodes.item(j)
+        if (node is Element && node.tagName == "class") {
+          classes += parseClass(node, packageName)
+        }
+      }
+    }
+
+    return classes
+  }
+
+  private fun parseClass(cls: Element, packageName: String): ClassCoverage {
+    val slashName = cls.getAttribute("name")
+    val fqcn = slashName.replace('/', '.')
+
+    return ClassCoverage(
+      fqcn = fqcn,
+      sourcefilename = cls.getAttribute("sourcefilename"),
+      packageName = packageName,
+      counters = parseDirectCounters(cls),
+    )
   }
 
   private fun parseFiles(root: Element): List<FileCoverage> {

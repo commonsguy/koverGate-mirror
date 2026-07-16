@@ -261,6 +261,41 @@ class XmlReportParserTest {
   }
 
   @Test
+  fun `parses class-level counters into ClassCoverage`() {
+    val xml = File("src/test/resources/jacoco/android-merged-sample.xml")
+
+    val result = XmlReportParser.parse(xml)
+
+    val widget = result.classes.single()
+    assertEquals("com.example.merged.Widget", widget.fqcn)
+    assertEquals("Widget.kt", widget.sourcefilename)
+    assertEquals("com/example/merged", widget.packageName)
+    assertEquals(Counter(missed = 0, covered = 11), widget.counters[CoverageMetric.INSTRUCTION])
+    assertEquals(Counter(missed = 0, covered = 3), widget.counters[CoverageMetric.LINE])
+    assertEquals(Counter(missed = 0, covered = 3), widget.counters[CoverageMetric.METHOD])
+    assertEquals(Counter(missed = 0, covered = 1), widget.counters[CoverageMetric.CLASS])
+    assertTrue(widget.counters[CoverageMetric.BRANCH] == null)
+  }
+
+  @Test
+  fun `sum of class counters per metric equals root module counters`() {
+    val xml = File("src/test/resources/jacoco/android-merged-sample.xml")
+
+    val result = XmlReportParser.parse(xml)
+
+    for (metric in CoverageMetric.entries) {
+      val summed =
+        result.classes
+          .mapNotNull { it.counters[metric] }
+          .fold(Counter(missed = 0, covered = 0)) { acc, c ->
+            Counter(missed = acc.missed + c.missed, covered = acc.covered + c.covered)
+          }
+
+      assertEquals(result.moduleCounters[metric] ?: Counter(missed = 0, covered = 0), summed)
+    }
+  }
+
+  @Test
   fun `reads file-level branch counts for display`() {
     val result =
       parseXml(

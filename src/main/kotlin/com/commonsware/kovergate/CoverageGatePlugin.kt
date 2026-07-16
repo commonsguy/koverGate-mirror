@@ -113,6 +113,7 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
         minMethodCoverage.set(extension.minMethodCoverage)
         minClassCoverage.set(extension.minClassCoverage)
         disabledMetrics.set(extension.disabledMetrics)
+        excludePatterns.set(extension.excludePatterns)
         prettyPrintJson.set(extension.prettyPrintJson)
         jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
         buildScripts.from(buildScriptFiles(project))
@@ -236,7 +237,7 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
       minClassCoverage.set(extension.minClassCoverage)
       disabledMetrics.set(extension.disabledMetrics)
       buildScripts.from(buildScriptFiles(project))
-      resolvedExcludes.set(project.provider { extension.coverageContributions.flatMap { it.excludePackages } })
+      resolvedExcludes.set(extension.excludePatterns.map { it.toList() })
     }
 
   /**
