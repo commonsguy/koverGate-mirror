@@ -1,4 +1,4 @@
-# KoverGate
+# koverGate
 
 A Gradle plugin that gates builds on [Kover](https://github.com/Kotlin/kotlinx-kover) coverage thresholds and generates structured gap reports. The objective is to make it easier for coding agents to process coverage results and identify where more tests are required.
 
@@ -17,7 +17,7 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
 }
 ```
 
@@ -86,7 +86,7 @@ If you do not need to change any of the configuration defaults, you can skip the
 
 ### Android Projects
 
-For Android projects, Kover generates build-variant-specific XML report tasks (`koverXmlReportDebug`, `koverXmlReportRelease`, etc.) rather than the `koverXmlReportJvm` task used by JVM modules. Set `xmlReportTask` to tell KoverGate which variant to gate on:
+For Android projects, Kover generates build-variant-specific XML report tasks (`koverXmlReportDebug`, `koverXmlReportRelease`, etc.) rather than the `koverXmlReportJvm` task used by JVM modules. Set `xmlReportTask` to tell koverGate which variant to gate on:
 
 ```kotlin
 koverGate {
@@ -100,7 +100,7 @@ If you forget to set this and no auto-detectable task exists, the build will fai
 
 Kover alone cannot see coverage from `androidTest/` instrumented tests — it only instruments JVM-based test tasks. AGP can produce JaCoCo coverage data for connected tests, and merging both at the execution-data level gives a complete picture: a line covered by *either* test type counts as covered.
 
-KoverGate supports this via the `xmlReportFile` property. When set, KoverGate reads coverage from that file instead of auto-detecting a Kover task, and the Kover plugin becomes fully optional.
+koverGate supports this via the `xmlReportFile` property. When set, koverGate reads coverage from that file instead of auto-detecting a Kover task, and the Kover plugin becomes fully optional.
 
 #### Scenario 1: Kover only (unit tests)
 
@@ -111,7 +111,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
 }
 
 koverGate {
@@ -128,7 +128,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
     jacoco
 }
 
@@ -141,7 +141,7 @@ android {
     }
 }
 
-// KoverGate automatically disables Gradle jacoco plugin Test instrumentation
+// koverGate automatically disables Gradle jacoco plugin Test instrumentation
 // when useJacoco() is detected — no manual tasks.withType<Test> block needed.
 kover { useJacoco() }
 
@@ -180,7 +180,7 @@ When Kover is not applied at all, the Gradle `jacoco` plugin handles unit-test e
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
     jacoco
 }
 
@@ -224,7 +224,7 @@ For multi-module builds, apply the plugin to the root project as well as each su
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
 }
 ```
 
@@ -236,11 +236,11 @@ If you do not need pretty-printed aggregate JSON, you can omit `koverGate {}` at
 ```kotlin
 plugins {
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
 }
 ```
 
-When the root project has subprojects, KoverGate registers an aggregate `koverGateReport` task at root that depends on all submodule `koverGateReport` tasks. Running:
+When the root project has subprojects, koverGate registers an aggregate `koverGateReport` task at root that depends on all submodule `koverGateReport` tasks. Running:
 
 ```bash
 ./gradlew koverGateReport
@@ -463,7 +463,7 @@ Every gap report records **where its numbers came from**, so a surprising verdic
 When `stale` is `true`, `koverGateGenerateReport` logs a warning (it never fails the build):
 
 ```
-KoverGate: coverage report may be STALE.
+koverGate: coverage report may be STALE.
   Kover XML: /abs/path/.../report.xml
   XML modified:          2026-06-18T14:03:11Z
   Build script modified: 2026-06-19T08:00:00Z
@@ -478,10 +478,10 @@ This catches the case where a cached or up-to-date Kover XML predates a change t
 
 The `stale` flag above is a build-script **timestamp heuristic**: it only compares the Kover XML's modification time to your build scripts'. It cannot tell whether Gradle actually regenerated the XML this build.
 
-KoverGate adds a second, complementary signal for exactly that. When a module's `koverGateReport` gate runs (executes or fails) while Gradle serves that module's `koverXmlReport*` task **up-to-date or from cache**, KoverGate logs a warning at the end of the build:
+koverGate adds a second, complementary signal for exactly that. When a module's `koverGateReport` gate runs (executes or fails) while Gradle serves that module's `koverXmlReport*` task **up-to-date or from cache**, koverGate logs a warning at the end of the build:
 
 ```
-KoverGate freshness: the Kover XML for :app was reused (UP_TO_DATE) this build while its coverage gate ran; if the verdict looks wrong, re-run with --rerun-tasks to regenerate coverage.
+koverGate freshness: the Kover XML for :app was reused (UP_TO_DATE) this build while its coverage gate ran; if the verdict looks wrong, re-run with --rerun-tasks to regenerate coverage.
 ```
 
 This is the situation in which a verdict can look wrong because Gradle did not rebuild the Kover XML from fresh inputs. Like the staleness heuristic, it never fails the build — re-run with `--rerun-tasks` to force regeneration.
@@ -497,7 +497,7 @@ For a one-command snapshot of everything that decides a verdict, run:
 It prints the configured thresholds (and which metrics are disabled), the Kover XML the gate will read, whether that XML exists and is stale, and the packages excluded via `attributeCoverageFrom` — without running tests or failing the build:
 
 ```
-KoverGate doctor for :your-module
+koverGate doctor for :your-module
 
 Thresholds:
   LINE: 100% (enabled)
@@ -622,20 +622,20 @@ The pattern must match the entire fully-qualified name (not just a substring).
 **Copying from `kover {}`:** if you already have a `kover { reports { excludes { ... } } }` block,
 you can copy its `classes(...)` and `packages(...)` lines into `koverGate { excludes { ... } }`
 almost verbatim — same method names, same wildcard semantics. The one exception is
-`annotatedBy(...)`: KoverGate's XML-based report has no per-class annotation data, so
+`annotatedBy(...)`: koverGate's XML-based report has no per-class annotation data, so
 `annotatedBy(...)` is not supported inside `koverGate { excludes { } }`. Leave any `annotatedBy(...)`
 lines in the `kover {}` block; if you accidentally paste one into `koverGate { excludes { } }`, the
 build fails at script-compilation time with an "unresolved reference" error rather than silently
 ignoring it.
 
-Unlike `kover {}`'s own excludes, `koverGate`'s `excludes {}` is applied by KoverGate itself while
+Unlike `kover {}`'s own excludes, `koverGate`'s `excludes {}` is applied by koverGate itself while
 reading the Kover XML — it does not depend on Kover's excludes surviving into the report, so it
 works even under the Gradle configuration cache and even when the report comes from an external
 `xmlReportFile` (see [Android: Merging Unit + Instrumented Coverage](#android-merging-unit--instrumented-coverage)).
 
-## Teaching Your Agent to Use KoverGate
+## Teaching Your Agent to Use koverGate
 
-KoverGate ships with a ready-made skill that tells AI coding agents how to run the coverage gate, read the JSON report, and write targeted tests to close the gaps.
+koverGate ships with a ready-made skill that tells AI coding agents how to run the coverage gate, read the JSON report, and write targeted tests to close the gaps.
 
 The skill is at [`skills/kover-gate-report/SKILL.md`](skills/kover-gate-report/SKILL.md) in this repository.
 

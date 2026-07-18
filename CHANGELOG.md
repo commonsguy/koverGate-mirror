@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-07-18
 
 ### Added
 
@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   can usually be copied over almost verbatim — except `annotatedBy(...)`, which has no equivalent here
   (the XML report carries no per-class annotation data) and fails to compile with a clear "unresolved
   reference" error if pasted in.
-  Because the filter is applied by KoverGate itself while reading the Kover XML — via its own
+  Because the filter is applied by koverGate itself while reading the Kover XML — via its own
   `SetProperty<String>` task input — it does not depend on Kover's own excludes surviving into the
   report. This defends two previously-fragile paths: the configuration-cache filter-loss case (Kover's
   in-memory excludes do not always survive a cached configuration), and the `attributeCoverageFrom`
@@ -160,6 +160,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
+[0.6.0]: https://codeberg.org/commonsguy/koverGate/compare/0.5.0...0.6.0
 [0.5.0]: https://codeberg.org/commonsguy/koverGate/compare/0.4.0...0.5.0
 [0.4.0]: https://codeberg.org/commonsguy/koverGate/compare/0.3.0...0.4.0
 [0.3.0]: https://codeberg.org/commonsguy/koverGate/compare/0.2.0...0.3.0
