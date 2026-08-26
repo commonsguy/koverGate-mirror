@@ -57,8 +57,8 @@ public abstract class CoverageGateExtension @Inject constructor(private val obje
   public val prettyPrintJson: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
   /**
-   * Name of the Kover XML report task to wire to `koverGateReport`. When blank (the default), the plugin auto-detects
-   * `koverXmlReportJvm` (JVM projects) or `koverXmlReport` (multiplatform aggregate).
+   * The task that produces the Kover XML report `koverGateReport` reads. When blank (the default), the plugin
+   * auto-detects `koverXmlReportJvm` (JVM projects) or `koverXmlReport` (multiplatform aggregate).
    *
    * Set this for Android projects where Kover generates variant-specific tasks:
    * ```
@@ -66,8 +66,21 @@ public abstract class CoverageGateExtension @Inject constructor(private val obje
    *     xmlReportTask.set("koverXmlReportDebug")
    * }
    * ```
+   *
+   * When [xmlReportFile] is also set, this identifies the producer of that file instead of selecting which Kover task
+   * to run — set it so the report-contention guard can detect a rewrite between that task finishing and the gate
+   * reading the file. Leave it blank in that case only if no single task can be named as the file's producer; the guard
+   * then falls back to after-read-only detection.
    */
   public val xmlReportTask: Property<String> = objects.property(String::class.java).convention("")
+
+  /**
+   * Whether a detected before-read report-contention rewrite fails the build. Defaults to `false`: the finding is
+   * logged as a warning and recorded in the gap report's `source.rewrittenBeforeRead` field, but the build still
+   * succeeds. Set to `true` in CI to hard-stop on a verdict that may have been computed from a report some other task
+   * rewrote after the declared producer finished.
+   */
+  public val failOnContendedReport: Property<Boolean> = objects.property(Boolean::class.java).convention(false)
 
   /**
    * Explicit path to a JaCoCo XML report for `koverGateReport` to consume, bypassing Kover task auto-detection.

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- A **report-contention guard**: koverGate now detects when the Kover (or JaCoCo) XML it gates on is rewritten by
+  another task during the same build. A rewrite *before* the gate reads the file means the gate parsed a foreign
+  report and the verdict may be wrong — this is recorded in `gap-report.json` as `source.rewrittenBeforeRead` and,
+  by default, logged as a warning; set `failOnContendedReport.set(true)` to fail the build on it instead. A rewrite
+  *after* the gate reads the file does not affect that build's verdict but flags the report path as contended, and
+  is logged at build end. `xmlReportTask` now also identifies the producer task in the `xmlReportFile` override
+  branch (previously only used to select which Kover variant to auto-detect), which is what lets the guard fully
+  apply there too; leaving it blank in that branch falls back to after-read-only detection, reported by
+  `koverGateDoctor` as `Report-contention guard: PARTIAL`.
+
 ## [0.6.0] - 2026-07-18
 
 ### Added

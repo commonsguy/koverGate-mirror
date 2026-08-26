@@ -26,6 +26,7 @@ import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
+import org.gradle.api.services.ServiceReference
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
@@ -253,6 +254,32 @@ public abstract class KoverGateReportTask : DefaultTask() {
    */
   @get:Internal public abstract val buildScripts: ConfigurableFileCollection
 
+  /**
+   * Path to the stamp file written by the resolved Kover XML producer task's `doLast` action, recording the XML's
+   * identity (build id, mtime, size) at the instant the producer finished. Compared against the XML's identity at read
+   * time to detect a before-read report-contention rewrite. Always wired to `build/reports/kover/producer-stamp.txt`;
+   * the file may not exist on disk when no producer stamped this build (no known producer, or the producer was reused).
+   */
+  @get:Internal public abstract val producerStampFile: RegularFileProperty
+
+  /**
+   * Fully-qualified path of the task that produces the Kover XML this task reads, used to name the producer in a
+   * before-read contention warning. Unset when no producer task is known.
+   */
+  @get:Internal public abstract val producerTaskPath: Property<String>
+
+  /**
+   * Whether a detected before-read report-contention rewrite fails the build, from
+   * [CoverageGateExtension.failOnContendedReport]. Defaults to `false`.
+   */
+  @get:Input public abstract val failOnContendedReport: Property<Boolean>
+
+  /**
+   * The build-scoped freshness service, injected by name so [KoverFreshnessService.buildId] can be read synchronously
+   * to detect a producer stamp left over from a previous build.
+   */
+  @get:ServiceReference(FRESHNESS_SERVICE_NAME) internal abstract val freshnessService: Property<KoverFreshnessService>
+
   @TaskAction
   public fun generate() {
     val xmlFile = xmlReportFile.get().asFile
@@ -264,8 +291,20 @@ public abstract class KoverGateReportTask : DefaultTask() {
       )
     }
 
+    val readIdentity = XmlIdentity(modifiedEpochMs = xmlFile.lastModified(), sizeBytes = xmlFile.length())
+    val service = freshnessService.get()
+    val contentionState = resolveContentionState(xmlFile, readIdentity, service)
+
+    service.recordGateRead(
+      GateReadObservation(
+        projectPath = projectPath.get(),
+        xmlPath = xmlFile.absolutePath,
+        modifiedEpochMs = readIdentity.modifiedEpochMs,
+        sizeBytes = readIdentity.sizeBytes,
+      )
+    )
+
     val parseResult = parseFilteredResult(xmlFile)
-    val disabled = disabledMetrics.get()
     val thresholds =
       mapOf(
         CoverageMetric.LINE to minLineCoverage.get(),
@@ -274,32 +313,79 @@ public abstract class KoverGateReportTask : DefaultTask() {
         CoverageMetric.METHOD to minMethodCoverage.get(),
         CoverageMetric.CLASS to minClassCoverage.get(),
       )
-
-    val metricResults: Map<CoverageMetric, MetricResult> =
-      CoverageMetric.entries
-        .filter { it !in disabled }
-        .associate { metric ->
-          val counter = parseResult.moduleCounters[metric]
-          val result =
-            if (counter != null) {
-              computeMetricResult(counter.covered, counter.missed, thresholds[metric]!!)
-            } else {
-              // Metric absent from XML (e.g., no branches in module) →
-              // vacuously passes at 100%
-              computeMetricResult(0, 0, thresholds[metric]!!)
-            }
-          metric to result
-        }
-
+    val metricResults = computeMetricResults(parseResult, disabledMetrics.get(), thresholds)
     val overallPassed = metricResults.values.all { it.passed }
     val filesWithGaps =
       parseResult.files.filter {
         it.uncoveredLines.isNotEmpty() || it.partiallyCoveredLines.isNotEmpty() || it.branchLines.isNotEmpty()
       }
     val buildScriptTimes = buildScripts.files.filter { it.exists() }.map { it.lastModified() }
-    val provenance = computeProvenance(xmlFile.absolutePath, xmlFile.lastModified(), buildScriptTimes)
+    val provenance =
+      computeProvenance(
+        xmlFile.absolutePath,
+        xmlFile.lastModified(),
+        buildScriptTimes,
+        contentionState.rewrittenBeforeRead,
+      )
 
-    // Write JSON (always, even on pass)
+    writeJsonReport(metricResults, filesWithGaps, overallPassed, provenance)
+
+    val summary = buildConsoleOutput(projectPath.get(), metricResults, filesWithGaps, overallPassed)
+
+    logger.lifecycle(summary)
+
+    emitWarnings(provenance, contentionState.warning)
+  }
+
+  /** Parses [xmlFile] and filters it by [excludePatterns] via [ClassNameExclusionMatcher] and [CoverageAggregator]. */
+  private fun parseFilteredResult(xmlFile: File): ParseResult {
+    val matcher = ClassNameExclusionMatcher(excludePatterns.get())
+
+    return CoverageAggregator.aggregate(XmlReportParser.parse(xmlFile), matcher)
+  }
+
+  /** Reads and parses [producerStampFile], or returns `null` when no stamp exists on disk. */
+  private fun readProducerStamp(): ProducerStamp? {
+    val stampFile = producerStampFile.orNull?.asFile
+
+    return stampFile?.takeIf { it.exists() }?.let { parseStamp(it.readText()) }
+  }
+
+  /**
+   * Resolves the before-read report-contention state for [xmlFile]: whether the gate's [readIdentity] differs from what
+   * [service]'s producer stamp recorded, and the warning text when it does (§4).
+   */
+  private fun resolveContentionState(
+    xmlFile: File,
+    readIdentity: XmlIdentity,
+    service: KoverFreshnessService,
+  ): ContentionState {
+    val stamp = readProducerStamp()
+    val verdict = detectBeforeReadRewrite(stamp, service.buildId, readIdentity.modifiedEpochMs, readIdentity.sizeBytes)
+    val rewrittenBeforeRead = verdict == ContentionVerdict.REWRITTEN
+    val warning =
+      if (rewrittenBeforeRead && stamp != null) {
+        buildBeforeReadWarning(
+          projectPath = projectPath.get(),
+          xmlPath = xmlFile.absolutePath,
+          producerTaskPath = producerTaskPath.getOrElse("<unknown producer>"),
+          stamp = stamp,
+          actual = readIdentity,
+        )
+      } else {
+        null
+      }
+
+    return ContentionState(rewrittenBeforeRead, warning)
+  }
+
+  /** Writes the JSON gap report to [jsonReportFile]. */
+  private fun writeJsonReport(
+    metricResults: Map<CoverageMetric, MetricResult>,
+    filesWithGaps: List<FileCoverage>,
+    overallPassed: Boolean,
+    provenance: SourceProvenance,
+  ) {
     val jsonFile = jsonReportFile.get().asFile
 
     jsonFile.parentFile.mkdirs()
@@ -315,23 +401,47 @@ public abstract class KoverGateReportTask : DefaultTask() {
         )
       )
     )
+  }
 
-    // Print console summary
-    val summary = buildConsoleOutput(projectPath.get(), metricResults, filesWithGaps, overallPassed)
-
-    logger.lifecycle(summary)
-
+  /** Logs the freshness warning (if any) and either logs or fails the build on [contentionWarning] (if any). */
+  private fun emitWarnings(provenance: SourceProvenance, contentionWarning: String?) {
     val freshnessWarning = buildFreshnessWarning(provenance)
 
     if (freshnessWarning != null) {
       logger.warn(freshnessWarning)
     }
+
+    if (contentionWarning != null) {
+      if (failOnContendedReport.get()) {
+        throw GradleException(contentionWarning)
+      } else {
+        logger.warn(contentionWarning)
+      }
+    }
   }
 
-  /** Parses [xmlFile] and filters it by [excludePatterns] via [ClassNameExclusionMatcher] and [CoverageAggregator]. */
-  private fun parseFilteredResult(xmlFile: File): ParseResult {
-    val matcher = ClassNameExclusionMatcher(excludePatterns.get())
-
-    return CoverageAggregator.aggregate(XmlReportParser.parse(xmlFile), matcher)
-  }
+  /** Before-read report-contention outcome for a single [generate] run (§4). */
+  private data class ContentionState(val rewrittenBeforeRead: Boolean, val warning: String?)
 }
+
+/**
+ * Computes a [MetricResult] per enabled [CoverageMetric], vacuously passing at 100% when a metric is absent from the
+ * XML.
+ */
+private fun computeMetricResults(
+  parseResult: ParseResult,
+  disabled: Set<CoverageMetric>,
+  thresholds: Map<CoverageMetric, Int>,
+): Map<CoverageMetric, MetricResult> =
+  CoverageMetric.entries
+    .filter { it !in disabled }
+    .associate { metric ->
+      val counter = parseResult.moduleCounters[metric]
+      val result =
+        if (counter != null) {
+          computeMetricResult(counter.covered, counter.missed, thresholds[metric]!!)
+        } else {
+          computeMetricResult(0, 0, thresholds[metric]!!)
+        }
+      metric to result
+    }

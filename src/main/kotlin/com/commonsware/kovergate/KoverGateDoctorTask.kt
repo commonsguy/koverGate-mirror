@@ -29,6 +29,18 @@ import org.gradle.work.DisableCachingByDefault
 // ─── Pure output builder (unit-testable without Gradle) ─────────────────────
 
 /**
+ * How much of the report-contention guard (see `ReportContention.kt`) applies to a module, determined by whether a
+ * producer task for the Kover XML is known (see the sketch's §6).
+ *
+ * - [FULL]: a producer task is known; both before-read and after-read detection are active.
+ * - [PARTIAL]: no producer task is known, so no stamp is written; only after-read detection is active.
+ */
+internal enum class ContentionGuardReach {
+  FULL,
+  PARTIAL,
+}
+
+/**
  * Parameters for building the doctor output.
  *
  * @param projectPath the Gradle project path (e.g., `:app`)
@@ -38,6 +50,8 @@ import org.gradle.work.DisableCachingByDefault
  * @param xmlExists whether that XML currently exists on disk
  * @param provenance freshness provenance for the XML, or null when the XML does not yet exist
  * @param resolvedExcludes fully-qualified package names excluded via `attributeCoverageFrom`
+ * @param guardReach how much of the report-contention guard applies to this module, defaults to
+ *   [ContentionGuardReach.FULL]
  */
 internal data class DoctorOutputParams(
   val projectPath: String,
@@ -47,6 +61,7 @@ internal data class DoctorOutputParams(
   val xmlExists: Boolean,
   val provenance: SourceProvenance?,
   val resolvedExcludes: List<String>,
+  val guardReach: ContentionGuardReach = ContentionGuardReach.FULL,
 )
 
 /**
@@ -65,6 +80,7 @@ internal fun buildDoctorOutput(params: DoctorOutputParams): String = buildString
   val xmlExists = params.xmlExists
   val provenance = params.provenance
   val resolvedExcludes = params.resolvedExcludes
+  val guardReach = params.guardReach
   appendLine("KoverGate doctor for $projectPath")
   appendLine()
 
@@ -90,6 +106,14 @@ internal fun buildDoctorOutput(params: DoctorOutputParams): String = buildString
     appendLine("    stale: ${provenance.stale}")
   } else {
     appendLine("  (run koverGateGenerateReport to produce it)")
+  }
+
+  if (guardReach == ContentionGuardReach.PARTIAL) {
+    appendLine(
+      "  Report-contention guard: PARTIAL (no producer task known; set xmlReportTask to restore full detection)"
+    )
+  } else {
+    appendLine("  Report-contention guard: FULL")
   }
 
   appendLine()
@@ -142,6 +166,12 @@ public abstract class KoverGateDoctorTask : DefaultTask() {
   /** Fully-qualified package names excluded via `attributeCoverageFrom`. */
   @get:Internal public abstract val resolvedExcludes: ListProperty<String>
 
+  /**
+   * How much of the report-contention guard applies to this module, from the plugin's producer-task resolution (see the
+   * sketch's §6). Defaults to [ContentionGuardReach.FULL] when unset.
+   */
+  @get:Internal internal abstract val guardReach: Property<ContentionGuardReach>
+
   /** Prints the diagnostic. Never fails the build. */
   @TaskAction
   internal fun diagnose() {
@@ -173,6 +203,7 @@ public abstract class KoverGateDoctorTask : DefaultTask() {
           xmlExists = xmlExists,
           provenance = provenance,
           resolvedExcludes = resolvedExcludes.get(),
+          guardReach = guardReach.getOrElse(ContentionGuardReach.FULL),
         )
       )
 

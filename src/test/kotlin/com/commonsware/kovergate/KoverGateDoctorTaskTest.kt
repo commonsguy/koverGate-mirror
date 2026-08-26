@@ -167,4 +167,43 @@ class KoverGateDoctorTaskTest {
 
     assertTrue(output.contains("(none)"))
   }
+
+  @Test
+  fun `doctor output reports FULL contention guard reach`() {
+    val output =
+      buildDoctorOutput(
+        DoctorOutputParams(
+          projectPath = ":app",
+          thresholds = allThresholds,
+          disabledMetrics = emptySet(),
+          xmlPath = "/p/report.xml",
+          xmlExists = true,
+          provenance = null,
+          resolvedExcludes = emptyList(),
+          guardReach = ContentionGuardReach.FULL,
+        )
+      )
+
+    assertTrue(output.contains("Report-contention guard: FULL"))
+  }
+
+  @Test
+  fun `doctor output reports PARTIAL contention guard reach with a remedy`() {
+    val output =
+      buildDoctorOutput(
+        DoctorOutputParams(
+          projectPath = ":app",
+          thresholds = allThresholds,
+          disabledMetrics = emptySet(),
+          xmlPath = "/p/report.xml",
+          xmlExists = true,
+          provenance = null,
+          resolvedExcludes = emptyList(),
+          guardReach = ContentionGuardReach.PARTIAL,
+        )
+      )
+
+    assertTrue(output.contains("Report-contention guard: PARTIAL"))
+    assertTrue(output.contains("xmlReportTask"))
+  }
 }

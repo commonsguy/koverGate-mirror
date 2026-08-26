@@ -124,6 +124,9 @@ public data class BranchGap(
  * @param stale true if the newest build script is newer than the XML report
  * @param newestBuildScriptModified ISO-8601 UTC instant of the most recently modified build script, or null if no build
  *   scripts were found
+ * @param rewrittenBeforeRead true if some task other than the declared producer wrote this XML after the producer
+ *   finished but before the gate read it, meaning this build's verdict may not reflect the module's own coverage
+ *   configuration
  */
 @Serializable
 public data class SourceProvenance(
@@ -131,4 +134,5 @@ public data class SourceProvenance(
   val xmlModified: String,
   val stale: Boolean,
   val newestBuildScriptModified: String? = null,
+  val rewrittenBeforeRead: Boolean = false,
 )

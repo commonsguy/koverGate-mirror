@@ -449,7 +449,8 @@ Every gap report records **where its numbers came from**, so a surprising verdic
     "xmlPath": "/abs/path/to/build/reports/kover/report.xml",
     "xmlModified": "2026-06-18T14:03:11Z",
     "stale": false,
-    "newestBuildScriptModified": "2026-06-17T09:12:44Z"
+    "newestBuildScriptModified": "2026-06-17T09:12:44Z",
+    "rewrittenBeforeRead": false
   }
 }
 ```
@@ -457,6 +458,7 @@ Every gap report records **where its numbers came from**, so a surprising verdic
 - `xmlPath` — the Kover (or JaCoCo) XML the report was computed from.
 - `xmlModified` / `newestBuildScriptModified` — ISO-8601 UTC timestamps.
 - `stale` — `true` when the newest build script is newer than the XML, i.e. the on-disk coverage may predate your current build configuration.
+- `rewrittenBeforeRead` — `true` when some other task rewrote the XML after its declared producer finished but before the gate read it, meaning **this build's verdict may be wrong**. See [Report-contention guard](#report-contention-guard) below.
 
 ### Freshness warning
 
@@ -486,6 +488,49 @@ koverGate freshness: the Kover XML for :app was reused (UP_TO_DATE) this build w
 
 This is the situation in which a verdict can look wrong because Gradle did not rebuild the Kover XML from fresh inputs. Like the staleness heuristic, it never fails the build — re-run with `--rerun-tasks` to force regeneration.
 
+### Report-contention guard
+
+The two signals above catch a report that is *old*. koverGate also detects a report that is *actively being rewritten by another task in the same build* — a real hazard if two tasks (e.g. a custom aggregation step and the gate itself) write to or read from the same XML path. This guard covers two distinct cases:
+
+- **Before-read rewrite** — some other task overwrote the Kover XML after its declared producer finished but before `koverGateGenerateReport` read it. The gate parsed a foreign report, so **this build's verdict may be wrong**:
+
+  ```
+  KoverGate: coverage report for :app was REWRITTEN before it was read; the verdict may be wrong.
+    Kover XML: /abs/path/.../report.xml
+    Declared producer: :app:koverXmlReportJvm
+    Producer wrote:  modified=2026-06-18T14:03:11Z size=48213
+    Gate read:       modified=2026-06-18T14:03:12Z size=51900
+    Some other task wrote this path after :app:koverXmlReportJvm finished; give the gate a report path nothing else writes.
+  ```
+
+  This finding is recorded in `gap-report.json` as `source.rewrittenBeforeRead`. By default it only warns; set `failOnContendedReport.set(true)` to hard-fail the build instead:
+
+  ```kotlin
+  koverGate {
+      failOnContendedReport.set(true)
+  }
+  ```
+
+- **After-read rewrite** — the XML changed again after the gate read it but before the build ended. The gate parsed the producer's own output, so this build's verdict is correct, but the path is contended and a future build may not be so lucky. This is console-only (it cannot reach `gap-report.json`, since it is discovered after the JSON is written) and never fails the build:
+
+  ```
+  koverGate: coverage report for :app was rewritten after :app's gate read it; this build's verdict is unaffected, but the report path is contended.
+    Kover XML: /abs/path/.../report.xml
+    Gate read:  modified=2026-06-18T14:03:11Z size=48213
+    Now:        modified=2026-06-18T14:03:15Z size=52010
+  ```
+
+The guard needs a known **producer task** to stamp the XML's identity the instant it finishes — this is automatic when koverGate auto-detects the Kover XML task, and available in the [`xmlReportFile`](#android-merging-unit--instrumented-coverage) override branch by also setting `xmlReportTask` to name whatever task writes that file:
+
+```kotlin
+koverGate {
+    xmlReportFile.set(layout.projectDirectory.file("external/jacoco.xml"))
+    xmlReportTask.set("mergeJacocoReports")
+}
+```
+
+Without `xmlReportTask` set in the override branch, no producer is known, no stamp is written, and the guard falls back to after-read-only detection — see the `koverGateDoctor` output below for how to tell which mode a module is in.
+
 ### `koverGateDoctor`
 
 For a one-command snapshot of everything that decides a verdict, run:
@@ -511,9 +556,16 @@ Kover XML: /abs/path/.../report.xml
   modified: 2026-06-18T14:03:11Z
   newest build script: 2026-06-17T09:12:44Z
   stale: false
+  Report-contention guard: FULL
 
 Excluded packages (attributeCoverageFrom):
   (none)
+```
+
+When no producer task is known (the `xmlReportFile` override branch with `xmlReportTask` left blank), that last line instead reads:
+
+```
+  Report-contention guard: PARTIAL (no producer task known; set xmlReportTask to restore full detection)
 ```
 
 ### `koverGateBump`

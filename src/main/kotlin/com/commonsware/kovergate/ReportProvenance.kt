@@ -34,12 +34,15 @@ internal fun isoInstant(epochMillis: Long): String = Instant.ofEpochMilli(epochM
  * @param xmlPath absolute path of the Kover XML report the gap report was computed from
  * @param xmlModifiedEpochMs the XML report's last-modified time in epoch milliseconds
  * @param buildScriptEpochsMs last-modified times, in epoch milliseconds, of the module's build scripts (may be empty)
+ * @param rewrittenBeforeRead whether a before-read report-contention rewrite was detected (see
+ *   [SourceProvenance.rewrittenBeforeRead]); defaults to `false`
  * @return the computed provenance, with [SourceProvenance.stale] set per the rule above
  */
 internal fun computeProvenance(
   xmlPath: String,
   xmlModifiedEpochMs: Long,
   buildScriptEpochsMs: List<Long>,
+  rewrittenBeforeRead: Boolean = false,
 ): SourceProvenance {
   val newest = buildScriptEpochsMs.maxOrNull()
   val stale = newest != null && newest > xmlModifiedEpochMs
@@ -49,6 +52,7 @@ internal fun computeProvenance(
     xmlModified = isoInstant(xmlModifiedEpochMs),
     stale = stale,
     newestBuildScriptModified = newest?.let { isoInstant(it) },
+    rewrittenBeforeRead = rewrittenBeforeRead,
   )
 }
 
