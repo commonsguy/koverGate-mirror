@@ -129,9 +129,15 @@ public abstract class KoverGateScopedReportTask : DefaultTask() {
     val resolvePath = { gap: FileGap -> resolveGitRelativePath(gap, sourceRootsList, gitRoot) }
 
     // Select and apply the scope filter
+    val untrackedPaths = gitDiff.get().untrackedPaths
     val filter =
       when (ScopeType.valueOf(scope.get().uppercase())) {
-        ScopeType.BRANCH -> BranchDiffScopeFilter(gitDiff.get().changedLinesByPath, resolvePath)
+        ScopeType.BRANCH ->
+          BranchDiffScopeFilter(
+            changedLinesByPath = gitDiff.get().changedLinesByPath,
+            untrackedPaths = untrackedPaths,
+            resolvePath = resolvePath,
+          )
       }
 
     val scoped = filter.apply(fullReport)
@@ -147,7 +153,10 @@ public abstract class KoverGateScopedReportTask : DefaultTask() {
     val status = if (scoped.passed) "PASSED" else "FAILED"
     val gapCount = scoped.files.size
     val fileSuffix = if (gapCount == 1) "file" else "files"
-    val summary = "Scoped coverage gate [$status] for ${projectPath.get()} ($gapCount $fileSuffix with in-scope gaps)"
+    val untrackedCount = scoped.files.count { resolvePath(it) in untrackedPaths }
+    val untrackedNote = if (untrackedCount > 0) ", $untrackedCount untracked" else ""
+    val summary =
+      "Scoped coverage gate [$status] for ${projectPath.get()} ($gapCount $fileSuffix with in-scope gaps$untrackedNote)"
 
     logger.lifecycle(summary)
   }

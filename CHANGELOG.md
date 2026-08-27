@@ -19,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   apply there too; leaving it blank in that branch falls back to after-read-only detection, reported by
   `koverGateDoctor` as `Report-contention guard: PARTIAL`.
 
+### Fixed
+
+- **`koverGateScopedReport` no longer silently excludes untracked files.** Brand-new, never-`git add`-ed source
+  files were invisible to the scoped report's git diff, so a fresh uncovered file could produce a misleading
+  `passed: true, files: []`. Every gap line in an untracked, non-gitignored file is now in scope by definition;
+  the console summary notes the count (e.g. `, 1 untracked`) when it is non-zero.
+
 ## [0.6.0] - 2026-07-18
 
 ### Added

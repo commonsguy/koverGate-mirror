@@ -313,6 +313,131 @@ class ScopedReportFunctionalTest {
   }
 
   @Test
+  fun `scoped report includes an untracked file`() {
+    writeSettingsFile()
+    writeBuildFile()
+    writeCalculatorSource(includeMultiply = false)
+    writeCalculatorTest(testMultiply = false)
+
+    // Initialize git and create main branch
+    git("init")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test User")
+    git("add", ".")
+    git("commit", "-m", "Initial commit: add/subtract with full coverage")
+
+    // Create feature branch
+    git("checkout", "-b", "feature")
+
+    // Add a brand-new, never-`git add`-ed source file with an uncovered method
+    val srcDir = File(projectDir, "src/main/kotlin/com/example")
+
+    srcDir.mkdirs()
+    File(srcDir, "Divider.kt")
+      .writeText(
+        """
+        package com.example
+        class Divider {
+            fun divide(a: Int, b: Int): Int = a / b
+        }
+        """
+          .trimIndent()
+      )
+
+    // Run tests and scoped report
+    runner("test", "koverGateReport").build()
+    val result = runner("koverGateScopedReport", "-PkoverGateBase=main").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateScopedReport")?.outcome)
+
+    // Check that the untracked file is detected
+    val json = File(projectDir, "build/reports/kover/scoped-gap-report.json").readText()
+    val report = Json.decodeFromString<GapReport>(json)
+
+    val dividerGap = report.files.find { it.name == "Divider.kt" }
+
+    assertTrue(dividerGap != null, "Untracked Divider.kt should appear in the scoped report")
+    assertTrue(dividerGap!!.uncoveredLines.isNotEmpty(), "Untracked file's uncovered lines should be in scope")
+    assertFalse(report.passed, "Scoped report should fail because the untracked file has in-scope gaps")
+    assertTrue(result.output.contains("untracked"), "Output should note the untracked file count")
+  }
+
+  @Test
+  fun `scoped report includes an untracked file in a subproject`() {
+    File(projectDir, "settings.gradle.kts")
+      .writeText(
+        """
+        pluginManagement {
+            repositories {
+                gradlePluginPortal()
+                mavenCentral()
+            }
+        }
+        rootProject.name = "multi-module"
+        include(":a", ":b")
+        """
+          .trimIndent()
+      )
+
+    File(projectDir, "build.gradle.kts")
+      .writeText(
+        """
+        plugins {
+            id("com.commonsware.kovergate")
+        }
+        """
+          .trimIndent()
+      )
+
+    createSubproject("a", "do1", uncovered = false)
+    createSubproject("b", "do2", uncovered = false)
+
+    // Initialize git with both modules
+    git("init")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test User")
+    git("add", ".")
+    git("commit", "-m", "Initial commit")
+
+    // Create feature branch
+    git("checkout", "-b", "feature")
+
+    // Add a brand-new, never-`git add`-ed source file inside subproject :a
+    val aaSrcDir = File(projectDir, "a/src/main/kotlin/com/example/a")
+
+    File(aaSrcDir, "ExtraA.kt")
+      .writeText(
+        """
+        package com.example.a
+        class ExtraA {
+            fun uncovered(): String = "uncovered"
+        }
+        """
+          .trimIndent()
+      )
+
+    // Run tests and scoped aggregate report
+    runner("test", "koverGateReport").build()
+    val result = runner("koverGateScopedReport", "-PkoverGateBase=main").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateScopedReport")?.outcome)
+
+    val jsonFile = File(projectDir, "build/reports/kover/scoped-gap-report.json")
+    val aggregate = Json.decodeFromString<AggregateGapReport>(jsonFile.readText())
+
+    val moduleA = aggregate.modules.find { it.module == ":a" }
+    val moduleB = aggregate.modules.find { it.module == ":b" }
+
+    assertTrue(
+      moduleA?.files?.any { it.name == "ExtraA.kt" } == true,
+      "Untracked ExtraA.kt in subproject :a should appear in scope. Module :a report: $moduleA",
+    )
+    assertFalse(moduleA?.passed ?: true, "Module :a should fail because its untracked file has in-scope gaps")
+    assertTrue(moduleB?.passed == true, "Module :b should pass; it has no untracked or changed files")
+    assertFalse(aggregate.passed, "Aggregate should report failure due to :a's untracked file")
+  }
+
+  @Test
   fun `scoped report passes when all changed lines are covered`() {
     writeSettingsFile()
     writeBuildFile()

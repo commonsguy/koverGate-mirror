@@ -206,7 +206,7 @@ When you only need to cover the lines **you changed on the current branch**, use
    ```bash
    ./gradlew :<module-name>:koverGateScopedReport
    ```
-   This automatically runs `koverGateGenerateReport` first (which parses the Kover XML and writes the gap report JSON without gating the build), then filters its output to only the lines changed on the current branch relative to `main`. Committed **and** uncommitted tracked changes are included. Because it does not depend on `koverGateReport`, it always runs — even when coverage is below threshold.
+   This automatically runs `koverGateGenerateReport` first (which parses the Kover XML and writes the gap report JSON without gating the build), then filters its output to only the lines changed on the current branch relative to `main`. Committed and uncommitted changes to tracked files are included, and so is every gap line in untracked (never `git add`-ed), non-gitignored files. Because it does not depend on `koverGateReport`, it always runs — even when coverage is below threshold.
 
 2. **Read the scoped JSON report:**
    ```
@@ -261,7 +261,7 @@ Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is
 
 Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear. Lines that were already uncovered before your branch are excluded.
 
-> **Limitation:** Untracked files (brand-new files never added with `git add`) are not scoped in until staged. Run `git add <file>` before the task if you need new files included.
+> **Note:** Untracked files (brand-new files not yet staged) are scoped in automatically — every gap line in an untracked, non-gitignored file counts as in scope, no staging required.
 
 ## Notes
 

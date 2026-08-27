@@ -27,19 +27,25 @@ import org.gradle.api.provider.ValueSourceParameters
 import org.gradle.process.ExecOperations
 
 /**
- * Parsed result of inspecting branch changes: the git root and the changed lines per file.
+ * Parsed result of inspecting branch changes: the git root, the changed lines per file, and untracked file paths.
  *
  * @param gitRoot the root directory of the git repository
  * @param changedLinesByPath map from git-root-relative path to the set of lines changed on the branch
+ * @param untrackedPaths git-root-relative paths of files that are untracked (never `git add`-ed) and not gitignored
  */
-public data class GitDiffResult(val gitRoot: File, val changedLinesByPath: Map<String, Set<Int>>)
+public data class GitDiffResult(
+  val gitRoot: File,
+  val changedLinesByPath: Map<String, Set<Int>>,
+  val untrackedPaths: Set<String>,
+)
 
 /**
- * A configuration-cache-safe [ValueSource] that reads the lines changed on the current branch relative to a base ref.
+ * A configuration-cache-safe [ValueSource] that reads the lines changed on the current branch relative to a base ref,
+ * plus the repository's untracked, non-gitignored file paths.
  *
- * Runs `git rev-parse --show-toplevel`, `git merge-base <baseRef> HEAD`, and `git diff --unified=0 <mergeBase>` in the
- * project directory (the last diffs the working tree, so uncommitted changes are included), then delegates to
- * [parseUnifiedDiff].
+ * Runs `git rev-parse --show-toplevel`, `git merge-base <baseRef> HEAD`, `git diff --unified=0 <mergeBase>` (diffs the
+ * working tree, so uncommitted changes are included), and `git ls-files --others --exclude-standard --full-name` in the
+ * project directory, then delegates to [parseUnifiedDiff] for the diff output.
  */
 internal abstract class GitDiffValueSource @Inject constructor(private val execOperations: ExecOperations) :
   ValueSource<GitDiffResult, GitDiffValueSource.Params> {
@@ -60,8 +66,12 @@ internal abstract class GitDiffValueSource @Inject constructor(private val execO
     val mergeBase = runGit(projectDir, listOf("merge-base", base, "HEAD")).trim()
     // Diff the working tree (no HEAD) so uncommitted changes are included and line numbers match the compiled source.
     val diff = runGit(projectDir, listOf("diff", "--unified=0", mergeBase))
+    // --full-name forces repo-root-relative output so paths match parseUnifiedDiff's form even when run from a
+    // submodule.
+    val untrackedOutput = runGit(projectDir, listOf("ls-files", "--others", "--exclude-standard", "--full-name"))
+    val untrackedPaths = untrackedOutput.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toSet()
 
-    return GitDiffResult(gitRoot, parseUnifiedDiff(diff))
+    return GitDiffResult(gitRoot, parseUnifiedDiff(diff), untrackedPaths)
   }
 
   private fun runGit(workingDir: File, args: List<String>): String {

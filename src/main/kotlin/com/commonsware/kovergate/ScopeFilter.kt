@@ -35,22 +35,34 @@ internal interface ScopeFilter {
 
 /**
  * A [ScopeFilter] that retains only the uncovered and missed-branch lines that fall within the lines changed on the
- * current branch.
+ * current branch, plus every gap line in a file that is untracked (never `git add`-ed) and not gitignored.
  *
  * @param changedLinesByPath map from git-root-relative path to the set of lines changed on the branch
+ * @param untrackedPaths git-root-relative paths of files that are untracked and not gitignored; every gap line in a
+ *   matched file is retained unfiltered, since an untracked file has no "changed lines" to diff against
  * @param resolvePath resolves a [FileGap] to its git-root-relative path, or `null` if the file cannot be located
  */
 internal class BranchDiffScopeFilter(
   private val changedLinesByPath: Map<String, Set<Int>>,
+  private val untrackedPaths: Set<String> = emptySet(),
   private val resolvePath: (FileGap) -> String?,
 ) : ScopeFilter {
   override fun apply(report: GapReport): GapReport {
     val scopedFiles =
       report.files.mapNotNull { file ->
         val path = resolvePath(file) ?: return@mapNotNull null
-        val changed = changedLinesByPath[path] ?: emptySet()
-        val uncovered = file.uncoveredLines.filter { it in changed }
-        val missedBranch = file.missedBranchLines.filter { it.line in changed }
+        val uncovered: List<Int>
+        val missedBranch: List<BranchGap>
+
+        if (path in untrackedPaths) {
+          uncovered = file.uncoveredLines
+          missedBranch = file.missedBranchLines
+        } else {
+          val changed = changedLinesByPath[path] ?: emptySet()
+
+          uncovered = file.uncoveredLines.filter { it in changed }
+          missedBranch = file.missedBranchLines.filter { it.line in changed }
+        }
 
         if (uncovered.isEmpty() && missedBranch.isEmpty()) {
           null

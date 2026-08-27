@@ -82,6 +82,76 @@ class ScopeFilterTest {
   }
 
   @Test
+  fun `retains all gap lines for an untracked file regardless of changed lines`() {
+    val gap =
+      FileGap(
+        "New.kt",
+        "com/example",
+        uncoveredLines = listOf(5, 6, 20),
+        missedBranchLines = listOf(BranchGap(30, 1, 2)),
+      )
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = emptyMap(),
+        untrackedPaths = setOf("src/main/kotlin/com/example/New.kt"),
+        resolvePath = { "src/main/kotlin/com/example/New.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertEquals(1, result.files.size)
+    assertEquals(listOf(5, 6, 20), result.files[0].uncoveredLines)
+    assertEquals(listOf(BranchGap(30, 1, 2)), result.files[0].missedBranchLines)
+  }
+
+  @Test
+  fun `still intersects changed lines for a tracked file`() {
+    val gap =
+      FileGap("Calculator.kt", "com/example", uncoveredLines = listOf(5, 6, 20), missedBranchLines = emptyList())
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = mapOf("src/main/kotlin/com/example/Calculator.kt" to setOf(5, 6, 7)),
+        untrackedPaths = setOf("src/main/kotlin/com/example/Other.kt"),
+        resolvePath = { "src/main/kotlin/com/example/Calculator.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertEquals(1, result.files.size)
+    assertEquals(listOf(5, 6), result.files[0].uncoveredLines)
+  }
+
+  @Test
+  fun `drops an untracked file with no gaps`() {
+    val gap = FileGap("Empty.kt", "com/example", uncoveredLines = emptyList(), missedBranchLines = emptyList())
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = emptyMap(),
+        untrackedPaths = setOf("p/Empty.kt"),
+        resolvePath = { "p/Empty.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertTrue(result.files.isEmpty())
+  }
+
+  @Test
+  fun `drops an untracked file whose path cannot be resolved`() {
+    val gap = FileGap("Ghost.kt", "com/example", uncoveredLines = listOf(1), missedBranchLines = emptyList())
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = emptyMap(),
+        untrackedPaths = setOf("p/Ghost.kt"),
+        resolvePath = { null },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertTrue(result.files.isEmpty())
+  }
+
+  @Test
   fun `passed is true when no in-scope gaps remain`() {
     val gap = FileGap("Bar.kt", "com/example", uncoveredLines = listOf(100), missedBranchLines = emptyList())
     val filter = BranchDiffScopeFilter(changedLinesByPath = emptyMap(), resolvePath = { "p/Bar.kt" })

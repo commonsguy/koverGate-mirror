@@ -354,9 +354,9 @@ The `koverGateScopedReport` task filters the gap report to only the lines **chan
 
 ### What It Does
 
-`koverGateScopedReport` depends on `koverGateGenerateReport` (the non-gating JSON writer) and reads its `gap-report.json`. It then diffs the working tree against the merge-base of the configured base ref and `HEAD` — capturing committed *and* uncommitted tracked changes — and keeps only the `uncoveredLines` and `missedBranchLines` entries that fall on a changed line. The result is written to `build/reports/kover/scoped-gap-report.json`. Because it depends on the generate step rather than the gate, it always completes — even when overall coverage is below threshold.
+`koverGateScopedReport` depends on `koverGateGenerateReport` (the non-gating JSON writer) and reads its `gap-report.json`. It then diffs the working tree against the merge-base of the configured base ref and `HEAD` — capturing committed and uncommitted changes to tracked files, plus every gap line in untracked (never `git add`-ed), non-gitignored files in full — and keeps only the `uncoveredLines` and `missedBranchLines` entries that are in scope. The result is written to `build/reports/kover/scoped-gap-report.json`. Because it depends on the generate step rather than the gate, it always completes — even when overall coverage is below threshold.
 
-> **Note:** Untracked files (never `git add`-ed) are excluded from the diff. Run `git add` first if you need new files included.
+> **Note:** Untracked, non-gitignored files are included in full — every gap line counts as in scope, since there is no prior committed version to diff against. Add a file to `.gitignore` if you need it excluded.
 
 ### Running It
 
