@@ -80,6 +80,11 @@ public data class MetricJson(
  *   lines is unavailable
  * @param missedInstructionsResidual missed instructions summed over [partiallyCoveredLines] — instructions on lines
  *   that did execute, frequently synthetic duplicate bytecode. `null` for the same reason as [missedInstructionsCold]
+ * @param gapKind the structural shape of this file's gap, derived from which of [uncoveredLines] and
+ *   [partiallyCoveredLines] are non-empty. `null` for the same reason as [missedInstructionsCold]
+ * @param dominantGapKind [COLD][GapKind.COLD] or [RESIDUAL][GapKind.RESIDUAL] depending on which of
+ *   [missedInstructionsCold] and [missedInstructionsResidual] is larger; `null` when the two are equal (including when
+ *   both are zero) or for the same reason as [missedInstructionsCold]
  */
 @Serializable
 public data class FileGap(
@@ -90,7 +95,31 @@ public data class FileGap(
   val partiallyCoveredLines: List<Int> = emptyList(),
   val missedInstructionsCold: Int? = null,
   val missedInstructionsResidual: Int? = null,
+  val gapKind: GapKind? = null,
+  val dominantGapKind: GapKind? = null,
 )
+
+/**
+ * The structural shape of a file's coverage gap, derived from which line buckets are non-empty.
+ *
+ * [COLD] and [RESIDUAL] describe a gap confined to one bucket; [MIXED] a gap spanning both; [BRANCH_ARMS_ONLY] a gap
+ * with no uncovered or partially covered lines at all — every missed instruction is on an otherwise fully-covered line,
+ * and only a branch arm is missed.
+ */
+@Serializable
+public enum class GapKind {
+  /** Every missed instruction is on a line that never executed ([FileGap.uncoveredLines] non-empty, no residual). */
+  @SerialName("cold") COLD,
+
+  /** Every missed instruction is on a line that did execute ([FileGap.partiallyCoveredLines] non-empty, no cold). */
+  @SerialName("residual") RESIDUAL,
+
+  /** The gap spans both cold and residual lines. */
+  @SerialName("mixed") MIXED,
+
+  /** No uncovered or partially covered lines; the gap is entirely missed branch arms. */
+  @SerialName("branchArmsOnly") BRANCH_ARMS_ONLY,
+}
 
 /**
  * Per-line branch coverage detail within a [FileGap]: how many of a source line's branches were missed out of its

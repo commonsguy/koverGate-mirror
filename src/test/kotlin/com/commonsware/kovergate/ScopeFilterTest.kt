@@ -198,4 +198,28 @@ class ScopeFilterTest {
     assertFalse(encoded.contains("missedInstructionsCold"))
     assertFalse(encoded.contains("missedInstructionsResidual"))
   }
+
+  @Test
+  fun `scoped output omits gapKind and dominantGapKind even when the source gap carried them`() {
+    val gap =
+      FileGap(
+        "Calculator.kt",
+        "com/example",
+        uncoveredLines = listOf(5, 6),
+        missedBranchLines = emptyList(),
+        gapKind = GapKind.MIXED,
+        dominantGapKind = GapKind.COLD,
+      )
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = mapOf("src/main/kotlin/com/example/Calculator.kt" to setOf(5, 6)),
+        resolvePath = { "src/main/kotlin/com/example/Calculator.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+    val encoded = Json.encodeToString(GapReport.serializer(), result)
+
+    assertFalse(encoded.contains("gapKind"))
+    assertFalse(encoded.contains("dominantGapKind"))
+  }
 }

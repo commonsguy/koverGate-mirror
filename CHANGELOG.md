@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   recompute them for a filtered subset of lines is unavailable. The console listing annotates each file with
   `[43 cold]`, `[4 cold, 27 residual]`, or `[branch arms only]` for a file whose only gap is missed branch arms on
   otherwise fully-covered lines.
+- **Gap-kind classification** for `gap-report.json`'s `files` array: each `FileGap` now also carries `gapKind`
+  (`cold`, `residual`, `mixed`, or `branchArmsOnly`), derived purely from which of `uncoveredLines` and
+  `partiallyCoveredLines` are non-empty, plus `dominantGapKind` (`cold` or `residual`) naming whichever instruction
+  bucket is larger — absent when the two are equal, including when both are zero. Both let a consuming agent branch
+  on one value instead of cross-referencing the line arrays and counts; both are `null` and omitted in scoped
+  reports for the same reason `missedInstructionsCold`/`missedInstructionsResidual` are. `residual` describes the
+  shape of the evidence, not a verdict — residual missed instructions still count toward the coverage metrics.
 - A **report-contention guard**: koverGate now detects when the Kover (or JaCoCo) XML it gates on is rewritten by
   another task during the same build. A rewrite *before* the gate reads the file means the gate parsed a foreign
   report and the verdict may be wrong — this is recorded in `gap-report.json` as `source.rewrittenBeforeRead` and,

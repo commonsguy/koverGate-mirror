@@ -528,4 +528,34 @@ class KoverGateReportTaskTest {
     assertEquals(43, report.files[0].missedInstructionsCold)
     assertEquals(7, report.files[0].missedInstructionsResidual)
   }
+
+  @Test
+  fun `JSON files array includes gapKind and dominantGapKind`() {
+    val files =
+      listOf(
+        FileCoverage(
+          "Foo.kt",
+          "com/example",
+          uncoveredLines = listOf(45),
+          partiallyCoveredLines = listOf(50),
+          missedInstructionsCold = 43,
+          missedInstructionsResidual = 7,
+        )
+      )
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = emptyMap(),
+            filesWithGaps = files,
+            prettyPrint = false,
+          )
+        )
+      )
+
+    assertEquals(GapKind.MIXED, report.files[0].gapKind)
+    assertEquals(GapKind.COLD, report.files[0].dominantGapKind)
+  }
 }

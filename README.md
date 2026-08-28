@@ -309,7 +309,9 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
       "missedBranchLines": [{ "line": 42, "missed": 1, "total": 2, "fullyInstructionCovered": false }],
       "partiallyCoveredLines": [88],
       "missedInstructionsCold": 61,
-      "missedInstructionsResidual": 8
+      "missedInstructionsResidual": 8,
+      "gapKind": "mixed",
+      "dominantGapKind": "cold"
     },
     {
       "name": "Bar.kt",
@@ -318,7 +320,9 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
       "missedBranchLines": [],
       "partiallyCoveredLines": [],
       "missedInstructionsCold": 19,
-      "missedInstructionsResidual": 0
+      "missedInstructionsResidual": 0,
+      "gapKind": "cold",
+      "dominantGapKind": "cold"
     }
   ]
 }
@@ -327,6 +331,17 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
 `uncoveredLines` lists only lines with **zero** covered instructions — genuinely never executed. A line that is partially covered (some instructions covered, some missed) appears in `partiallyCoveredLines` instead; its residual is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test can close. On each `missedBranchLines` entry, `fullyInstructionCovered: true` flags a line whose instructions are all covered and only a branch arm is missed — usually a synthetic or unreachable arm.
 
 `files` arrives ordered by missed-instruction leverage, most first: `missedInstructionsCold` (summed over `uncoveredLines`) descending, then `missedInstructionsResidual` (summed over `partiallyCoveredLines`) descending, then file name ascending. Closing a 43-instruction gap is worth more than closing a 1-instruction one, and this ordering surfaces that without requiring you to sum the line lists yourself. A file whose only gap is missed branch arms on otherwise fully-covered lines has both counts at `0` and renders as `[branch arms only]` in the console instead of a misleading `[0 cold]`. Treat the counts as a proxy for leverage, not a measure of it: they are bytecode instruction counts, not developer effort, and a single Kotlin line carrying an inlined lambda or a coroutine state machine can outweigh ten plain statements.
+
+Each file entry also carries `gapKind`, the structural shape of its gap derived from which of `uncoveredLines` and `partiallyCoveredLines` are non-empty:
+
+| `uncoveredLines` | `partiallyCoveredLines` | `gapKind`        |
+| ---------------- | ----------------------- | ---------------- |
+| non-empty        | empty                   | `cold`           |
+| empty            | non-empty               | `residual`       |
+| non-empty        | non-empty               | `mixed`          |
+| empty            | empty                   | `branchArmsOnly` |
+
+`dominantGapKind` names whichever of `missedInstructionsCold` or `missedInstructionsResidual` is larger (`cold` or `residual`), and is absent when the two are equal — including when both are zero. A `gapKind` of `residual` means the gap's instructions did execute, but incompletely — it does **not** mean the gap is safe to ignore: residual missed instructions still count toward the coverage metrics exactly like cold ones, so a `residual`-only or `residual`-dominant file can still fail the gate.
 
 > **Note:** Every leaf-module `gap-report.json` also carries a `source` provenance block (after `files`) recording which XML the numbers came from and whether it is stale. It is omitted from the example above for brevity — see [Report Provenance & Freshness](#report-provenance--freshness). The aggregate report carries the same block inside each entry of its `modules` array.
 
@@ -405,7 +420,7 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
 }
 ```
 
-`missedInstructionsCold` and `missedInstructionsResidual` are absent here: the scoped filter narrows `gap-report.json`'s existing line lists to the changed subset, but it has no access to the per-line instruction counts needed to recompute the sums for that subset, so it leaves both fields unset rather than publish a number that no longer matches the filtered lines.
+`missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here: the scoped filter narrows `gap-report.json`'s existing line lists to the changed subset, but it has no access to the per-line instruction counts needed to recompute the sums for that subset — and it drops `partiallyCoveredLines` entirely — so a `gapKind` derived from the filtered result would misrepresent the file's real gap. All four fields are left unset rather than publish a number or a label that no longer matches the filtered lines.
 
 - `"passed": true` when `files` is empty (no in-scope gaps).
 - `"passed": false` when at least one changed line is uncovered or has a missed branch.

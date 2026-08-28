@@ -29,6 +29,7 @@ After writing or modifying tests in a module, check coverage gaps and close them
      - `partiallyCoveredLines`: line numbers with both covered and missed instructions (`ci > 0 && mi > 0`) — mostly exercised; the residual is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test can close. Verify against the source before writing tests
      - `missedBranchLines`: per-line `{ line, missed, total, fullyInstructionCovered }` objects for lines with partial branch coverage (`mb > 0`). A `missed`/`total` of `1/2` often marks an unreachable arm (refactor or accept); `2/2` is a genuinely untested branch (write a test). `fullyInstructionCovered: true` means every instruction on the line is covered and only a branch arm is missed — a strong hint the arm is synthetic or unreachable
      - `missedInstructionsCold`: missed instructions summed over `uncoveredLines`; `missedInstructionsResidual`: missed instructions summed over `partiallyCoveredLines`. These drive the ordering above — a higher `missedInstructionsCold` means more leverage in closing that file's cold gaps. Treat them as a proxy, not a measure: they count bytecode instructions, not effort, so one line with an inlined lambda can outweigh ten plain statements
+     - `gapKind`: `cold`, `residual`, `mixed`, or `branchArmsOnly` — the structural shape of the file's gap, derived from which of `uncoveredLines` and `partiallyCoveredLines` are non-empty. Branch on this first. `dominantGapKind` (`cold` or `residual`) names whichever instruction bucket is larger, and is absent when the two are equal (including both-zero) — treat its absence as "no bucket dominates," not as an error. A `gapKind` of `residual` is not a signal to skip the file: residual instructions still count toward the coverage metrics, so verify against the source and write a test if the gap is real
 
 4. **Write targeted tests** to cover the identified lines and branches. Focus on:
    - The specific line numbers listed in `uncoveredLines`
@@ -260,7 +261,7 @@ Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is
 }
 ```
 
-Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear. Lines that were already uncovered before your branch are excluded. `missedInstructionsCold` and `missedInstructionsResidual` are absent here — the scoped filter cannot recompute them for a filtered subset of lines.
+Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear. Lines that were already uncovered before your branch are excluded. `missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here — the scoped filter cannot recompute the instruction counts for a filtered subset of lines, and it drops `partiallyCoveredLines` entirely, so a `gapKind` computed from the filtered result would misrepresent the file's real gap.
 
 > **Note:** Untracked files (brand-new files not yet staged) are scoped in automatically — every gap line in an untracked, non-gitignored file counts as in scope, no staging required.
 

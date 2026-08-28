@@ -222,6 +222,8 @@ internal fun buildJsonOutput(params: JsonOutputParams): String {
             file.partiallyCoveredLines,
             file.missedInstructionsCold,
             file.missedInstructionsResidual,
+            classifyGapKind(file),
+            classifyDominantGapKind(file),
           )
         },
       source = source,
