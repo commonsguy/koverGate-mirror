@@ -75,6 +75,11 @@ public data class MetricJson(
  * @param partiallyCoveredLines line numbers with both covered and missed instructions — mostly exercised, the residual
  *   often produced by synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test
  *   can close
+ * @param missedInstructionsCold missed instructions summed over [uncoveredLines] — instructions on lines that never
+ *   executed. `null` in a scoped report, where the per-line data needed to recompute this for a filtered subset of
+ *   lines is unavailable
+ * @param missedInstructionsResidual missed instructions summed over [partiallyCoveredLines] — instructions on lines
+ *   that did execute, frequently synthetic duplicate bytecode. `null` for the same reason as [missedInstructionsCold]
  */
 @Serializable
 public data class FileGap(
@@ -83,6 +88,8 @@ public data class FileGap(
   val uncoveredLines: List<Int>,
   val missedBranchLines: List<BranchGap>,
   val partiallyCoveredLines: List<Int> = emptyList(),
+  val missedInstructionsCold: Int? = null,
+  val missedInstructionsResidual: Int? = null,
 )
 
 /**

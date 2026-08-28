@@ -368,6 +368,98 @@ class XmlReportParserTest {
   }
 
   @Test
+  fun `sums missed instructions on never-executed lines into the cold count`() {
+    val result =
+      parseXml(
+        """
+        <report name="test">
+            <package name="com/example">
+                <sourcefile name="Cold.kt">
+                    <line nr="10" mi="3" ci="0" mb="0" cb="0"/>
+                    <line nr="20" mi="5" ci="0" mb="0" cb="0"/>
+                </sourcefile>
+            </package>
+        </report>
+        """
+          .trimIndent()
+      )
+
+    val file = result.files.single()
+
+    assertEquals(8, file.missedInstructionsCold)
+    assertEquals(0, file.missedInstructionsResidual)
+  }
+
+  @Test
+  fun `sums missed instructions on partially executed lines into the residual count`() {
+    val result =
+      parseXml(
+        """
+        <report name="test">
+            <package name="com/example">
+                <sourcefile name="Residual.kt">
+                    <line nr="10" mi="2" ci="10" mb="0" cb="0"/>
+                    <line nr="20" mi="4" ci="6" mb="0" cb="0"/>
+                </sourcefile>
+            </package>
+        </report>
+        """
+          .trimIndent()
+      )
+
+    val file = result.files.single()
+
+    assertEquals(0, file.missedInstructionsCold)
+    assertEquals(6, file.missedInstructionsResidual)
+  }
+
+  @Test
+  fun `sums cold and residual missed instructions separately on a mixed file`() {
+    val result =
+      parseXml(
+        """
+        <report name="test">
+            <package name="com/example">
+                <sourcefile name="Mixed2.kt">
+                    <line nr="10" mi="3" ci="0" mb="0" cb="0"/>
+                    <line nr="20" mi="2" ci="10" mb="0" cb="0"/>
+                    <line nr="30" mi="0" ci="5" mb="0" cb="0"/>
+                </sourcefile>
+            </package>
+        </report>
+        """
+          .trimIndent()
+      )
+
+    val file = result.files.single()
+
+    assertEquals(3, file.missedInstructionsCold)
+    assertEquals(2, file.missedInstructionsResidual)
+  }
+
+  @Test
+  fun `a file whose only gap is a missed branch arm on a fully covered line has zero missed instructions`() {
+    val result =
+      parseXml(
+        """
+        <report name="test">
+            <package name="com/example">
+                <sourcefile name="BranchOnly.kt">
+                    <line nr="5" mi="0" ci="8" mb="1" cb="1"/>
+                </sourcefile>
+            </package>
+        </report>
+        """
+          .trimIndent()
+      )
+
+    val file = result.files.single()
+
+    assertEquals(0, file.missedInstructionsCold)
+    assertEquals(0, file.missedInstructionsResidual)
+  }
+
+  @Test
   fun `branch line on partially covered code is not flagged instruction-covered`() {
     val result =
       parseXml(

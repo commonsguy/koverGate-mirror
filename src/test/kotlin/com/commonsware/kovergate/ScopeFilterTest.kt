@@ -16,6 +16,7 @@
 
 package com.commonsware.kovergate
 
+import kotlinx.serialization.json.Json
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -172,5 +173,29 @@ class ScopeFilterTest {
     assertFalse(result.passed)
     assertTrue(result.metrics.isEmpty())
     assertEquals(":app", result.module)
+  }
+
+  @Test
+  fun `scoped output omits missed instruction counts even when the source gap carried them`() {
+    val gap =
+      FileGap(
+        "Calculator.kt",
+        "com/example",
+        uncoveredLines = listOf(5, 6),
+        missedBranchLines = emptyList(),
+        missedInstructionsCold = 43,
+        missedInstructionsResidual = 7,
+      )
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = mapOf("src/main/kotlin/com/example/Calculator.kt" to setOf(5, 6)),
+        resolvePath = { "src/main/kotlin/com/example/Calculator.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+    val encoded = Json.encodeToString(GapReport.serializer(), result)
+
+    assertFalse(encoded.contains("missedInstructionsCold"))
+    assertFalse(encoded.contains("missedInstructionsResidual"))
   }
 }

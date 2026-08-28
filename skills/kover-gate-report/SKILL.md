@@ -24,10 +24,11 @@ After writing or modifying tests in a module, check coverage gaps and close them
 
 3. **Interpret results:**
    - If `"passed": true` — coverage requirements are met. Done.
-   - If `"passed": false` — examine the `files` array. Each entry lists:
+   - If `"passed": false` — examine the `files` array, which arrives ordered by missed-instruction leverage (most missed instructions first), so work it top-down. Each entry lists:
      - `uncoveredLines`: line numbers with **zero** covered instructions (`ci == 0`) — genuinely never executed; write tests for these
      - `partiallyCoveredLines`: line numbers with both covered and missed instructions (`ci > 0 && mi > 0`) — mostly exercised; the residual is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test can close. Verify against the source before writing tests
      - `missedBranchLines`: per-line `{ line, missed, total, fullyInstructionCovered }` objects for lines with partial branch coverage (`mb > 0`). A `missed`/`total` of `1/2` often marks an unreachable arm (refactor or accept); `2/2` is a genuinely untested branch (write a test). `fullyInstructionCovered: true` means every instruction on the line is covered and only a branch arm is missed — a strong hint the arm is synthetic or unreachable
+     - `missedInstructionsCold`: missed instructions summed over `uncoveredLines`; `missedInstructionsResidual`: missed instructions summed over `partiallyCoveredLines`. These drive the ordering above — a higher `missedInstructionsCold` means more leverage in closing that file's cold gaps. Treat them as a proxy, not a measure: they count bytecode instructions, not effort, so one line with an inlined lambda can outweigh ten plain statements
 
 4. **Write targeted tests** to cover the identified lines and branches. Focus on:
    - The specific line numbers listed in `uncoveredLines`
@@ -259,7 +260,7 @@ Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is
 }
 ```
 
-Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear. Lines that were already uncovered before your branch are excluded.
+Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear. Lines that were already uncovered before your branch are excluded. `missedInstructionsCold` and `missedInstructionsResidual` are absent here — the scoped filter cannot recompute them for a filtered subset of lines.
 
 > **Note:** Untracked files (brand-new files not yet staged) are scoped in automatically — every gap line in an untracked, non-gitignored file counts as in scope, no staging required.
 

@@ -38,6 +38,21 @@ internal data class BranchLine(
   val fullyInstructionCovered: Boolean = false,
 )
 
+/**
+ * Per-file coverage detail, parsed from a `<sourcefile>` element.
+ *
+ * @property name the source file's simple name, e.g. `Widget.kt`
+ * @property packageName the slash-separated package name
+ * @property uncoveredLines line numbers with zero covered instructions (`ci == 0`) — never executed
+ * @property branchLines per-line branch coverage detail
+ * @property missedBranches the file's total missed branches, from the file-level BRANCH counter
+ * @property totalBranches the file's total branches (missed plus covered)
+ * @property partiallyCoveredLines line numbers with both covered and missed instructions
+ * @property missedInstructionsCold missed instructions (`mi`) summed over [uncoveredLines] — instructions on lines that
+ *   never executed
+ * @property missedInstructionsResidual missed instructions (`mi`) summed over [partiallyCoveredLines] — instructions on
+ *   lines that did execute, frequently synthetic duplicate bytecode
+ */
 internal data class FileCoverage(
   val name: String,
   val packageName: String,
@@ -46,6 +61,8 @@ internal data class FileCoverage(
   val missedBranches: Int = 0,
   val totalBranches: Int = 0,
   val partiallyCoveredLines: List<Int> = emptyList(),
+  val missedInstructionsCold: Int = 0,
+  val missedInstructionsResidual: Int = 0,
 )
 
 /**
@@ -165,6 +182,8 @@ internal object XmlReportParser {
     val partiallyCoveredLines = mutableListOf<Int>()
     val branchLines = mutableListOf<BranchLine>()
     val lines = sf.getElementsByTagName("line")
+    var missedInstructionsCold = 0
+    var missedInstructionsResidual = 0
 
     for (i in 0 until lines.length) {
       val line = lines.item(i) as Element
@@ -175,8 +194,14 @@ internal object XmlReportParser {
       val covered = line.getAttribute("cb").toIntOrNull() ?: 0
 
       when {
-        mi > 0 && ci == 0 -> uncoveredLines += nr
-        mi > 0 -> partiallyCoveredLines += nr
+        mi > 0 && ci == 0 -> {
+          uncoveredLines += nr
+          missedInstructionsCold += mi
+        }
+        mi > 0 -> {
+          partiallyCoveredLines += nr
+          missedInstructionsResidual += mi
+        }
       }
 
       if (missed > 0) branchLines += BranchLine(nr, missed, missed + covered, fullyInstructionCovered = mi == 0)
@@ -192,6 +217,8 @@ internal object XmlReportParser {
       missedBranches = missedBranches,
       totalBranches = totalBranches,
       partiallyCoveredLines = partiallyCoveredLines.sorted(),
+      missedInstructionsCold = missedInstructionsCold,
+      missedInstructionsResidual = missedInstructionsResidual,
     )
   }
 

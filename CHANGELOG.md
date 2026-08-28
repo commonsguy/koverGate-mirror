@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Instruction-leverage ordering** for `gap-report.json`'s `files` array: entries now sort by missed-instruction
+  magnitude (most missed instructions first) instead of parse order, so the console output and the JSON both surface
+  the highest-leverage gap first — closing a 43-instruction gap beats chasing a 1-instruction one. Each `FileGap`
+  gains `missedInstructionsCold` (summed over `uncoveredLines`) and `missedInstructionsResidual` (summed over
+  `partiallyCoveredLines`); both are `null` and omitted in scoped reports, where the per-line data needed to
+  recompute them for a filtered subset of lines is unavailable. The console listing annotates each file with
+  `[43 cold]`, `[4 cold, 27 residual]`, or `[branch arms only]` for a file whose only gap is missed branch arms on
+  otherwise fully-covered lines.
 - A **report-contention guard**: koverGate now detects when the Kover (or JaCoCo) XML it gates on is rewritten by
   another task during the same build. A rewrite *before* the gate reads the file means the gate parsed a foreign
   report and the verdict may be wrong — this is recorded in `gap-report.json` as `source.rewrittenBeforeRead` and,

@@ -81,6 +81,41 @@ internal fun computeMetricResult(covered: Int, missed: Int, threshold: Int): Met
 }
 
 /**
+ * Orders [files] by instruction-leverage: cold missed instructions descending (untested logic first), then residual
+ * missed instructions descending, then file name ascending as a deterministic tie-break — required because
+ * [KoverGateCheckTask] is `@CacheableTask` with the gap report JSON as an input, so a nondeterministic order would
+ * defeat its up-to-date checks.
+ */
+internal fun sortFilesByInstructionLeverage(files: List<FileCoverage>): List<FileCoverage> =
+  files.sortedWith(
+    compareByDescending<FileCoverage> { it.missedInstructionsCold }
+      .thenByDescending { it.missedInstructionsResidual }
+      .thenBy { it.name }
+  )
+
+/**
+ * Renders the bracketed instruction-leverage annotation for a single file's header line in the console output, or an
+ * empty string when there is nothing to annotate.
+ *
+ * A file whose gap is entirely missed branch arms on otherwise fully-covered lines (no uncovered or partially covered
+ * lines at all) renders as `[branch arms only]`, since its cold/residual counts are both zero by construction and a
+ * bare `0 cold` would misleadingly suggest nothing needs testing. Otherwise, the non-zero cold/residual counts are
+ * rendered, e.g. `[43 cold]` or `[4 cold, 27 residual]`.
+ */
+private fun leverageAnnotation(file: FileCoverage): String {
+  if (file.uncoveredLines.isEmpty() && file.partiallyCoveredLines.isEmpty()) {
+    return "  [branch arms only]"
+  }
+
+  val parts = mutableListOf<String>()
+
+  if (file.missedInstructionsCold > 0) parts += "${file.missedInstructionsCold} cold"
+  if (file.missedInstructionsResidual > 0) parts += "${file.missedInstructionsResidual} residual"
+
+  return if (parts.isNotEmpty()) "  [${parts.joinToString(", ")}]" else ""
+}
+
+/**
  * Builds a human-readable console summary of coverage results. Shows passed/failed status for each metric with counts,
  * thresholds, and details about uncovered lines and missed branches per file.
  */
@@ -110,10 +145,10 @@ internal fun buildConsoleOutput(
 
   if (filesWithGaps.isNotEmpty()) {
     appendLine()
-    appendLine("Files with gaps:")
+    appendLine("Files with gaps (most missed instructions first):")
 
     for (file in filesWithGaps) {
-      appendLine("  ${file.name}")
+      appendLine("  ${file.name}${leverageAnnotation(file)}")
 
       if (file.uncoveredLines.isNotEmpty()) {
         val plural = if (file.uncoveredLines.size == 1) "Line" else "Lines"
@@ -185,6 +220,8 @@ internal fun buildJsonOutput(params: JsonOutputParams): String {
             file.uncoveredLines,
             file.branchLines.map { BranchGap(it.line, it.missed, it.total, it.fullyInstructionCovered) },
             file.partiallyCoveredLines,
+            file.missedInstructionsCold,
+            file.missedInstructionsResidual,
           )
         },
       source = source,
@@ -316,9 +353,11 @@ public abstract class KoverGateReportTask : DefaultTask() {
     val metricResults = computeMetricResults(parseResult, disabledMetrics.get(), thresholds)
     val overallPassed = metricResults.values.all { it.passed }
     val filesWithGaps =
-      parseResult.files.filter {
-        it.uncoveredLines.isNotEmpty() || it.partiallyCoveredLines.isNotEmpty() || it.branchLines.isNotEmpty()
-      }
+      sortFilesByInstructionLeverage(
+        parseResult.files.filter {
+          it.uncoveredLines.isNotEmpty() || it.partiallyCoveredLines.isNotEmpty() || it.branchLines.isNotEmpty()
+        }
+      )
     val buildScriptTimes = buildScripts.files.filter { it.exists() }.map { it.lastModified() }
     val provenance =
       computeProvenance(

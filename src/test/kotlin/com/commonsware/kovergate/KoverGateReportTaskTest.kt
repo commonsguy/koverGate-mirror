@@ -83,6 +83,47 @@ class KoverGateReportTaskTest {
     assertEquals(100.0, result.percent)
   }
 
+  // --- sortFilesByInstructionLeverage ---
+
+  @Test
+  fun `sorts files by cold missed instructions descending`() {
+    val files =
+      listOf(
+        FileCoverage("Low.kt", "p", listOf(1), missedInstructionsCold = 4),
+        FileCoverage("High.kt", "p", listOf(1), missedInstructionsCold = 43),
+      )
+
+    val sorted = sortFilesByInstructionLeverage(files)
+
+    assertEquals(listOf("High.kt", "Low.kt"), sorted.map { it.name })
+  }
+
+  @Test
+  fun `breaks cold ties by residual descending`() {
+    val files =
+      listOf(
+        FileCoverage("LessResidual.kt", "p", listOf(1), missedInstructionsCold = 10, missedInstructionsResidual = 2),
+        FileCoverage("MoreResidual.kt", "p", listOf(1), missedInstructionsCold = 10, missedInstructionsResidual = 27),
+      )
+
+    val sorted = sortFilesByInstructionLeverage(files)
+
+    assertEquals(listOf("MoreResidual.kt", "LessResidual.kt"), sorted.map { it.name })
+  }
+
+  @Test
+  fun `breaks cold and residual ties by name ascending`() {
+    val files =
+      listOf(
+        FileCoverage("Zebra.kt", "p", listOf(1), missedInstructionsCold = 5),
+        FileCoverage("Alpha.kt", "p", listOf(1), missedInstructionsCold = 5),
+      )
+
+    val sorted = sortFilesByInstructionLeverage(files)
+
+    assertEquals(listOf("Alpha.kt", "Zebra.kt"), sorted.map { it.name })
+  }
+
   // --- buildConsoleOutput ---
 
   @Test
@@ -140,7 +181,7 @@ class KoverGateReportTaskTest {
         FileCoverage("Bar.kt", "com/example", listOf(112), emptyList()),
       )
     val output = buildConsoleOutput(":m", results, files, passed = false)
-    assertTrue(output.contains("Files with gaps:"))
+    assertTrue(output.contains("Files with gaps (most missed instructions first):"))
     assertTrue(output.contains("Foo.kt"))
     assertTrue(output.contains("Lines 45, 47 uncovered"))
     assertTrue(output.contains("Branches 45 (1/2) missed (1 of 2)"))
@@ -168,6 +209,62 @@ class KoverGateReportTaskTest {
     val output = buildConsoleOutput(":m", results, emptyList(), passed = true)
     assertTrue(output.contains("Line:"))
     assertFalse(output.contains("Branch:"), "Disabled metric must not appear in console output")
+  }
+
+  @Test
+  fun `console output heading notes leverage ordering`() {
+    val files = listOf(FileCoverage("Foo.kt", "com/example", listOf(45), missedInstructionsCold = 3))
+    val output = buildConsoleOutput(":m", emptyMap(), files, passed = false)
+    assertTrue(output.contains("Files with gaps (most missed instructions first):"))
+  }
+
+  @Test
+  fun `console output annotates a file with only cold missed instructions`() {
+    val files = listOf(FileCoverage("Foo.kt", "com/example", listOf(45), missedInstructionsCold = 43))
+    val output = buildConsoleOutput(":m", emptyMap(), files, passed = false)
+    assertTrue(output.contains("Foo.kt  [43 cold]"))
+  }
+
+  @Test
+  fun `console output annotates a file with cold and residual missed instructions`() {
+    val files =
+      listOf(
+        FileCoverage(
+          "Foo.kt",
+          "com/example",
+          listOf(45),
+          partiallyCoveredLines = listOf(60),
+          missedInstructionsCold = 4,
+          missedInstructionsResidual = 27,
+        )
+      )
+    val output = buildConsoleOutput(":m", emptyMap(), files, passed = false)
+    assertTrue(output.contains("Foo.kt  [4 cold, 27 residual]"))
+  }
+
+  @Test
+  fun `console output labels a branch-arms-only file`() {
+    val files =
+      listOf(
+        FileCoverage(
+          "Foo.kt",
+          "com/example",
+          emptyList(),
+          listOf(BranchLine(30, 1, 2)),
+          missedBranches = 1,
+          totalBranches = 6,
+        )
+      )
+    val output = buildConsoleOutput(":m", emptyMap(), files, passed = false)
+    assertTrue(output.contains("Foo.kt  [branch arms only]"))
+  }
+
+  @Test
+  fun `console output omits the bracket when there is nothing to annotate`() {
+    val files = listOf(FileCoverage("Foo.kt", "com/example", listOf(45)))
+    val output = buildConsoleOutput(":m", emptyMap(), files, passed = false)
+    assertTrue(output.contains("  Foo.kt\n"))
+    assertFalse(output.contains("[]"))
   }
 
   // --- buildJsonOutput ---
@@ -407,5 +504,28 @@ class KoverGateReportTaskTest {
     val output = buildConsoleOutput(":m", emptyMap(), files, passed = false)
 
     assertTrue(output.contains("Lines 36, 37 partially covered"))
+  }
+
+  @Test
+  fun `JSON files array includes missed instruction cold and residual counts`() {
+    val files =
+      listOf(
+        FileCoverage("Foo.kt", "com/example", listOf(45), missedInstructionsCold = 43, missedInstructionsResidual = 7)
+      )
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = emptyMap(),
+            filesWithGaps = files,
+            prettyPrint = false,
+          )
+        )
+      )
+
+    assertEquals(43, report.files[0].missedInstructionsCold)
+    assertEquals(7, report.files[0].missedInstructionsResidual)
   }
 }
