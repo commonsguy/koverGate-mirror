@@ -17,6 +17,7 @@
 package com.commonsware.kovergate
 
 import java.io.File
+import java.io.IOException
 import kotlin.math.roundToInt
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -280,6 +281,13 @@ public abstract class KoverGateReportTask : DefaultTask() {
   @get:OutputFile public abstract val jsonReportFile: RegularFileProperty
 
   /**
+   * Output path for the previous build's gap report, rotated aside before the new one is written. Defaults to
+   * `build/reports/kover/gap-report-baseline.json`. Consumed by `koverGateDelta` to compute how coverage moved since
+   * the last build.
+   */
+  @get:OutputFile public abstract val baselineReportFile: RegularFileProperty
+
+  /**
    * Gradle project path (e.g., `:app`), set by the plugin from [org.gradle.api.Project.getPath]. Used as the module
    * identifier in console and JSON output.
    */
@@ -420,7 +428,34 @@ public abstract class KoverGateReportTask : DefaultTask() {
     return ContentionState(rewrittenBeforeRead, warning)
   }
 
-  /** Writes the JSON gap report to [jsonReportFile]. */
+  /**
+   * Rotates the existing [jsonFile] aside to [baselineReportFile] before it is overwritten with the new report, so
+   * `koverGateDelta` can compare this build's coverage against the previous one.
+   *
+   * Copies bytes verbatim rather than parsing and re-serializing, so the baseline is never silently rewritten under
+   * this build's [prettyPrintJson] setting and a malformed leftover [jsonFile] cannot fail the build. If no prior
+   * report exists (first build, or a build immediately after `clean`), any stale baseline left over from before a
+   * `clean` is deleted rather than compared against a fresh report. Never throws: rotation is not part of the gate's
+   * verdict, so any I/O failure is logged at `warn` and otherwise ignored.
+   */
+  private fun rotateBaseline(jsonFile: File) {
+    val baselineFile = baselineReportFile.get().asFile
+
+    try {
+      if (jsonFile.exists()) {
+        baselineFile.parentFile.mkdirs()
+        jsonFile.copyTo(baselineFile, overwrite = true)
+      } else if (baselineFile.exists()) {
+        baselineFile.delete()
+      }
+    } catch (e: IOException) {
+      logger.warn("KoverGate: failed to rotate coverage baseline: ${e.message}")
+    } catch (e: SecurityException) {
+      logger.warn("KoverGate: failed to rotate coverage baseline: ${e.message}")
+    }
+  }
+
+  /** Writes the JSON gap report to [jsonReportFile], rotating the previous report to [baselineReportFile] first. */
   private fun writeJsonReport(
     metricResults: Map<CoverageMetric, MetricResult>,
     filesWithGaps: List<FileCoverage>,
@@ -429,6 +464,7 @@ public abstract class KoverGateReportTask : DefaultTask() {
   ) {
     val jsonFile = jsonReportFile.get().asFile
 
+    rotateBaseline(jsonFile)
     jsonFile.parentFile.mkdirs()
     jsonFile.writeText(
       buildJsonOutput(

@@ -627,6 +627,44 @@ and cannot fail against the very report that produced it. By default the task on
 
 Metrics disabled via `disabledMetrics` are skipped (the gap report omits them). The task never fails the build.
 
+### `koverGateDelta`
+
+To see how coverage moved **since the previous build** — not since `main`, not since any git ref, just build-to-build — run:
+
+```bash
+./gradlew :<module>:koverGateDelta
+```
+
+Every run of `koverGateGenerateReport` rotates its just-written `gap-report.json` aside to `gap-report-baseline.json` before writing the new one, so "the previous build" always means exactly that: whatever this module's coverage looked like the last time it was built, regardless of what git ref that corresponds to. `koverGateDelta` reads that baseline and the current `gap-report.json`, and writes `build/reports/kover/gap-delta.json`:
+
+```json
+{
+  "module": ":your-module",
+  "baseline": "present",
+  "metrics": {
+    "LINE": { "percentDelta": -2.2, "coveredDelta": -6, "totalDelta": 0 }
+  },
+  "files": [
+    {
+      "name": "Foo.kt",
+      "package": "com/example",
+      "missedInstructionsColdDelta": 8,
+      "missedInstructionsResidualDelta": 0,
+      "uncoveredLineCountDelta": 1,
+      "partiallyCoveredLineCountDelta": -1,
+      "missedBranchLineCountDelta": 1,
+      "status": "worsened"
+    }
+  ]
+}
+```
+
+`baseline` is `"absent"` — never all-zeros — when there is nothing to compare against (the first build, or any build immediately after `clean`, since the baseline lives in `build/` alongside every other koverGate output). Treat `"absent"` as "no answer available," not as "no change." `metrics` and `files` are both empty in that case.
+
+`files` lists only files whose counts moved; a file with no change at all is omitted, and a file that newly appeared or fully closed is compared against all-zero counts on the missing side. `status` is `"worsened"` or `"improved"`, judged solely by the change in total missed instructions (`missedInstructionsColdDelta + missedInstructionsResidualDelta`) — a file whose instruction sum is unchanged but whose line counts shifted (e.g. from an unrelated structural edit) is classified `"improved"`. Deltas are file-level counts only, never line numbers: a structural edit shifts every later line number in a file, so comparing line-number sets would report the whole file as simultaneously newly-covered and newly-uncovered.
+
+`koverGateDelta` never fails the build — it is a diagnostic alongside `koverGateBump` and `koverGateDoctor`, not a gate. It also never checks out or reads git; if you need "did I cause this regression relative to `main`," compare `koverGateScopedReport`'s output against your own judgment of the diff, since answering that question precisely would require rebuilding `main`'s coverage from scratch.
+
 ## Cross-Module Coverage Attribution
 
 Sometimes one module's tests exercise another module's code — the common

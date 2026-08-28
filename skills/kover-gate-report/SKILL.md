@@ -453,3 +453,22 @@ value. Interpreting and using the output:
 - Metrics disabled via `disabledMetrics` are omitted from the report and therefore never suggested.
 
 This task never fails the build; it only prints suggestions.
+
+## Coverage Movement Since the Previous Build (`koverGateDelta`)
+
+To answer "did my last edit make coverage better or worse," without checking out `main` or diffing git refs, run:
+
+```bash
+./gradlew :<module-name>:koverGateDelta
+```
+
+`koverGateGenerateReport` rotates its own just-written `gap-report.json` aside to `gap-report-baseline.json` before writing the new one, on every build — so "the baseline" always means the previous build's report, not a git ref. `koverGateDelta` reads that baseline plus the current `gap-report.json` and writes `build/reports/kover/gap-delta.json`.
+
+Reading `baseline` first matters more than reading anything else in the file:
+
+- `"baseline": "absent"` means **no answer is available** — the first build, or any build immediately after `clean` (the baseline lives under `build/`, so it does not survive one). Do not read `"absent"` as "no change"; `metrics` and `files` are both empty in this case because there is nothing to compare against.
+- `"baseline": "present"` means a real comparison happened. `metrics` carries one entry per metric present in both reports (`percentDelta`, `coveredDelta`, `totalDelta`); `files` carries one entry per file whose counts moved, each with `status: "worsened"` or `"improved"` judged solely by the change in total missed instructions.
+
+A malformed leftover baseline file is treated the same as a missing one (`"absent"`) rather than failing the build.
+
+`koverGateDelta` compares build-to-build, not against `main` or any other git ref — that would require rebuilding `main`'s coverage from scratch, which this task deliberately does not do. It never fails the build, same as `koverGateBump` and `koverGateDoctor`.

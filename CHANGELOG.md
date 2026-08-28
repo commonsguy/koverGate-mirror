@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   branch (previously only used to select which Kover variant to auto-detect), which is what lets the guard fully
   apply there too; leaving it blank in that branch falls back to after-read-only detection, reported by
   `koverGateDoctor` as `Report-contention guard: PARTIAL`.
+- A new **`koverGateDelta`** task reports how coverage moved since the previous build. `koverGateGenerateReport` now
+  rotates its just-written `gap-report.json` aside to `gap-report-baseline.json` on every run, so "the previous
+  build" is always well-defined regardless of git state; `koverGateDelta` reads that baseline plus the current
+  report and writes `build/reports/kover/gap-delta.json`, with a `baseline` field of `"present"` or `"absent"` (the
+  latter never synthesized as all-zeros) and file-level (not line-level) instruction and line-count deltas. Like
+  `koverGateBump` and `koverGateDoctor`, it is diagnostic-only and never fails the build.
 
 ### Fixed
 

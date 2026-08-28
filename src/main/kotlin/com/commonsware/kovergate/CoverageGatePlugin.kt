@@ -120,6 +120,7 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
         excludePatterns.set(extension.excludePatterns)
         prettyPrintJson.set(extension.prettyPrintJson)
         jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
+        baselineReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report-baseline.json"))
         buildScripts.from(buildScriptFiles(project))
         producerStampFile.set(producerStampFileProvider)
         failOnContendedReport.set(extension.failOnContendedReport)
@@ -142,6 +143,8 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
     registerScopedReport(project, extension, gapReportProvider, generateTaskProvider)
 
     registerBumpTask(project, gapReportProvider, generateTaskProvider)
+
+    registerDeltaTask(project, extension, gapReportProvider, generateTaskProvider)
 
     val doctorTaskProvider = registerDoctorReport(project, extension)
 
@@ -194,6 +197,24 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
       gapReportFile.set(gapReportProvider)
       margin.convention("0")
       allowLower.convention(false)
+      dependsOn(generateTaskProvider)
+    }
+  }
+
+  private fun registerDeltaTask(
+    project: Project,
+    extension: CoverageGateExtension,
+    gapReportProvider: org.gradle.api.provider.Provider<org.gradle.api.file.RegularFile>,
+    generateTaskProvider: org.gradle.api.tasks.TaskProvider<KoverGateReportTask>,
+  ) {
+    project.tasks.register("koverGateDelta", KoverGateDeltaTask::class.java) {
+      group = "verification"
+      description = "Reports how coverage moved since the previous build"
+      projectPath.set(project.path)
+      prettyPrintJson.set(extension.prettyPrintJson)
+      gapReportFile.set(gapReportProvider)
+      baselineReportFile.set(generateTaskProvider.flatMap { it.baselineReportFile })
+      deltaReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-delta.json"))
       dependsOn(generateTaskProvider)
     }
   }
