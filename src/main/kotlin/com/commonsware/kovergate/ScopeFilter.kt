@@ -34,8 +34,9 @@ internal interface ScopeFilter {
 }
 
 /**
- * A [ScopeFilter] that retains only the uncovered and missed-branch lines that fall within the lines changed on the
- * current branch, plus every gap line in a file that is untracked (never `git add`-ed) and not gitignored.
+ * A [ScopeFilter] that retains only the uncovered, partially covered, and missed-branch lines that fall within the
+ * lines changed on the current branch, plus every gap line in a file that is untracked (never `git add`-ed) and not
+ * gitignored.
  *
  * @param changedLinesByPath map from git-root-relative path to the set of lines changed on the branch
  * @param untrackedPaths git-root-relative paths of files that are untracked and not gitignored; every gap line in a
@@ -53,21 +54,30 @@ internal class BranchDiffScopeFilter(
         val path = resolvePath(file) ?: return@mapNotNull null
         val uncovered: List<Int>
         val missedBranch: List<BranchGap>
+        val partiallyCovered: List<Int>
 
         if (path in untrackedPaths) {
           uncovered = file.uncoveredLines
           missedBranch = file.missedBranchLines
+          partiallyCovered = file.partiallyCoveredLines
         } else {
           val changed = changedLinesByPath[path] ?: emptySet()
 
           uncovered = file.uncoveredLines.filter { it in changed }
           missedBranch = file.missedBranchLines.filter { it.line in changed }
+          partiallyCovered = file.partiallyCoveredLines.filter { it in changed }
         }
 
-        if (uncovered.isEmpty() && missedBranch.isEmpty()) {
+        if (uncovered.isEmpty() && missedBranch.isEmpty() && partiallyCovered.isEmpty()) {
           null
         } else {
-          FileGap(file.name, file.packageName, uncovered, missedBranch)
+          FileGap(
+            name = file.name,
+            packageName = file.packageName,
+            uncoveredLines = uncovered,
+            missedBranchLines = missedBranch,
+            partiallyCoveredLines = partiallyCovered,
+          )
         }
       }
 

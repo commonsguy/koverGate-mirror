@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`koverGateScopedReport` no longer drops partially covered lines.** `BranchDiffScopeFilter`
+  constructed its output `FileGap` positionally, so `partiallyCoveredLines` silently fell back to its
+  default of empty instead of being filtered like `uncoveredLines` and `missedBranchLines`. Scoped
+  reports now filter and emit `partiallyCoveredLines` the same way, and a file whose only in-scope
+  gap is a partially covered line is retained (and can flip the scoped `passed` to `false`) rather
+  than being silently omitted.
+
 ### Added
 
 - **Instruction-leverage ordering** for `gap-report.json`'s `files` array: entries now sort by missed-instruction

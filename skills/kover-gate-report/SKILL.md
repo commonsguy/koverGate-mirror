@@ -257,13 +257,14 @@ Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is
       "name": "Calculator.kt",
       "package": "com/example",
       "uncoveredLines": [12],
-      "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }]
+      "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }],
+      "partiallyCoveredLines": [18]
     }
   ]
 }
 ```
 
-Only `uncoveredLines` and `missedBranchLines` that fall on a changed line appear. Lines that were already uncovered before your branch are excluded. `missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here — the scoped filter cannot recompute the instruction counts for a filtered subset of lines, and it drops `partiallyCoveredLines` entirely, so a `gapKind` computed from the filtered result would misrepresent the file's real gap.
+Only `uncoveredLines`, `missedBranchLines`, and `partiallyCoveredLines` entries that fall on a changed line appear — a partially covered line on its own is enough to keep a file in the scoped report. Lines that were already uncovered (or partially covered) before your branch are excluded. `missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here — the scoped filter cannot recompute the instruction counts for a filtered subset of lines, so a `gapKind` computed from the filtered result would misrepresent the file's real gap.
 
 > **Note:** Untracked files (brand-new files not yet staged) are scoped in automatically — every gap line in an untracked, non-gitignored file counts as in scope, no staging required.
 

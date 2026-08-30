@@ -312,6 +312,80 @@ class ScopedReportFunctionalTest {
     )
   }
 
+  private fun writeClassifierSource() {
+    val srcDir = File(projectDir, "src/main/kotlin/com/example")
+
+    srcDir.mkdirs()
+    File(srcDir, "Classifier.kt")
+      .writeText(
+        """
+        package com.example
+        class Classifier {
+            fun classify(n: Int): String = if (n > 0) "pos" else "neg"
+        }
+        """
+          .trimIndent()
+      )
+  }
+
+  private fun writeClassifierTest() {
+    val testDir = File(projectDir, "src/test/kotlin/com/example")
+
+    testDir.mkdirs()
+    File(testDir, "ClassifierTest.kt")
+      .writeText(
+        """
+        package com.example
+        import kotlin.test.Test
+        import kotlin.test.assertEquals
+        class ClassifierTest {
+            @Test fun positive() = assertEquals("pos", Classifier().classify(1))
+        }
+        """
+          .trimIndent()
+      )
+  }
+
+  @Test
+  fun `scoped report includes a partially covered line`() {
+    writeSettingsFile()
+    writeBuildFile()
+    writeCalculatorSource(includeMultiply = false)
+    writeCalculatorTest(testMultiply = false)
+
+    // Initialize git and create main branch
+    git("init")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test User")
+    git("add", ".")
+    git("commit", "-m", "Initial commit: add/subtract with full coverage")
+
+    // Create feature branch
+    git("checkout", "-b", "feature")
+
+    // Add a partially covered line (only one branch of the `if` is exercised), uncommitted
+    writeClassifierSource()
+    writeClassifierTest()
+
+    // Run tests and scoped report
+    runner("test", "koverGateReport").build()
+    val result = runner("koverGateScopedReport", "-PkoverGateBase=main").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateScopedReport")?.outcome)
+
+    val json = File(projectDir, "build/reports/kover/scoped-gap-report.json").readText()
+    val report = Json.decodeFromString<GapReport>(json)
+
+    val classifierGap = report.files.find { it.name == "Classifier.kt" }
+
+    assertTrue(classifierGap != null, "Classifier.kt should appear in the scoped report")
+    assertTrue(
+      classifierGap!!.partiallyCoveredLines.isNotEmpty(),
+      "The partially covered classify() line should be in scope. Got: $classifierGap",
+    )
+    assertFalse(report.passed, "Scoped report should fail because an in-scope partially covered line exists")
+  }
+
   @Test
   fun `scoped report includes an untracked file`() {
     writeSettingsFile()

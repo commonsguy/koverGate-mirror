@@ -200,6 +200,95 @@ class ScopeFilterTest {
   }
 
   @Test
+  fun `filters partially covered lines by changed lines`() {
+    val gap =
+      FileGap(
+        "Calculator.kt",
+        "com/example",
+        uncoveredLines = listOf(5),
+        missedBranchLines = emptyList(),
+        partiallyCoveredLines = listOf(10, 20),
+      )
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = mapOf("p/Calculator.kt" to setOf(5, 10)),
+        resolvePath = { "p/Calculator.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertEquals(listOf(10), result.files[0].partiallyCoveredLines)
+  }
+
+  @Test
+  fun `retains a file whose only in-scope gap is a partially covered line`() {
+    val gap =
+      FileGap(
+        "Calculator.kt",
+        "com/example",
+        uncoveredLines = emptyList(),
+        missedBranchLines = emptyList(),
+        partiallyCoveredLines = listOf(10),
+      )
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = mapOf("p/Calculator.kt" to setOf(10)),
+        resolvePath = { "p/Calculator.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertEquals(1, result.files.size)
+    assertEquals(listOf(10), result.files[0].partiallyCoveredLines)
+    assertFalse(result.passed)
+  }
+
+  @Test
+  fun `drops a file whose only partially covered line is out of scope`() {
+    val gap =
+      FileGap(
+        "Calculator.kt",
+        "com/example",
+        uncoveredLines = emptyList(),
+        missedBranchLines = emptyList(),
+        partiallyCoveredLines = listOf(20),
+      )
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = mapOf("p/Calculator.kt" to setOf(10)),
+        resolvePath = { "p/Calculator.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertTrue(result.files.isEmpty())
+    assertTrue(result.passed)
+  }
+
+  @Test
+  fun `retains all partially covered lines for an untracked file regardless of changed lines`() {
+    val gap =
+      FileGap(
+        "New.kt",
+        "com/example",
+        uncoveredLines = listOf(5),
+        missedBranchLines = listOf(BranchGap(30, 1, 2)),
+        partiallyCoveredLines = listOf(15, 16),
+      )
+    val filter =
+      BranchDiffScopeFilter(
+        changedLinesByPath = emptyMap(),
+        untrackedPaths = setOf("src/main/kotlin/com/example/New.kt"),
+        resolvePath = { "src/main/kotlin/com/example/New.kt" },
+      )
+
+    val result = filter.apply(report(gap))
+
+    assertEquals(1, result.files.size)
+    assertEquals(listOf(15, 16), result.files[0].partiallyCoveredLines)
+  }
+
+  @Test
   fun `scoped output omits gapKind and dominantGapKind even when the source gap carried them`() {
     val gap =
       FileGap(

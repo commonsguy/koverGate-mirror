@@ -421,13 +421,14 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
       "name": "Calculator.kt",
       "package": "com/example",
       "uncoveredLines": [12],
-      "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }]
+      "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }],
+      "partiallyCoveredLines": [18]
     }
   ]
 }
 ```
 
-`missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here: the scoped filter narrows `gap-report.json`'s existing line lists to the changed subset, but it has no access to the per-line instruction counts needed to recompute the sums for that subset — and it drops `partiallyCoveredLines` entirely — so a `gapKind` derived from the filtered result would misrepresent the file's real gap. All four fields are left unset rather than publish a number or a label that no longer matches the filtered lines.
+`uncoveredLines`, `missedBranchLines`, and `partiallyCoveredLines` are all filtered down to the changed-line subset the same way — a partially covered line on its own is enough to keep a file in scope and flip `passed` to `false`. `missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here: the scoped filter narrows `gap-report.json`'s existing line lists to the changed subset, but it has no access to the per-line instruction counts needed to recompute the sums for that subset, so a `gapKind` derived from the filtered result would misrepresent the file's real gap. All four fields are left unset rather than publish a number or a label that no longer matches the filtered lines.
 
 - `"passed": true` when `files` is empty (no in-scope gaps).
 - `"passed": false` when at least one changed line is uncovered or has a missed branch.
