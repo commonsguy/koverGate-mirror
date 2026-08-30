@@ -267,6 +267,45 @@ class KoverGateReportTaskTest {
     assertFalse(output.contains("[]"))
   }
 
+  // --- buildConsoleOutput headroom ---
+
+  @Test
+  fun `console output shows a deficit for a failing metric`() {
+    val results = mapOf(CoverageMetric.LINE to MetricResult(177, 200, 88.5, 90, false, headroom = -3))
+    val output = buildConsoleOutput(":m", results, emptyList(), passed = false)
+    assertTrue(output.contains("needs 3 more lines"))
+  }
+
+  @Test
+  fun `console output shows headroom for a passing metric`() {
+    val results = mapOf(CoverageMetric.BRANCH to MetricResult(52, 57, 91.2, 90, true, headroom = 2))
+    val output = buildConsoleOutput(":m", results, emptyList(), passed = true)
+    assertTrue(output.contains("headroom: 2 branches"))
+  }
+
+  @Test
+  fun `console output shows not instrumented for a zero-total metric`() {
+    val results = mapOf(CoverageMetric.METHOD to MetricResult(0, 0, 100.0, 90, true, headroom = null))
+    val output = buildConsoleOutput(":m", results, emptyList(), passed = true)
+    assertTrue(output.contains("[not instrumented]"))
+  }
+
+  @Test
+  fun `console output uses singular unit for a deficit of one`() {
+    val results = mapOf(CoverageMetric.LINE to MetricResult(179, 200, 89.5, 90, false, headroom = -1))
+    val output = buildConsoleOutput(":m", results, emptyList(), passed = false)
+    assertTrue(output.contains("needs 1 more line"))
+    assertFalse(output.contains("needs 1 more lines"))
+  }
+
+  @Test
+  fun `console output uses singular unit for a headroom of one`() {
+    val results = mapOf(CoverageMetric.BRANCH to MetricResult(58, 57, 100.0, 90, true, headroom = 1))
+    val output = buildConsoleOutput(":m", results, emptyList(), passed = true)
+    assertTrue(output.contains("headroom: 1 branch"))
+    assertFalse(output.contains("headroom: 1 branches"))
+  }
+
   // --- buildJsonOutput ---
 
   private fun parseJson(json: String): GapReport = Json.decodeFromString(json)
@@ -347,6 +386,28 @@ class KoverGateReportTaskTest {
     assertEquals(98.8, metric.percent)
     assertEquals(100, metric.threshold)
     assertFalse(metric.passed)
+  }
+
+  @Test
+  fun `JSON metrics block contains headroom`() {
+    val results =
+      mapOf(
+        CoverageMetric.LINE to
+          MetricResult(covered = 161, total = 163, percent = 98.8, threshold = 100, passed = false, headroom = -2)
+      )
+    val report =
+      parseJson(
+        buildJsonOutput(
+          JsonOutputParams(
+            projectPath = ":m",
+            passed = false,
+            metricResults = results,
+            filesWithGaps = emptyList(),
+            prettyPrint = false,
+          )
+        )
+      )
+    assertEquals(-2, report.metrics["LINE"]!!.headroom)
   }
 
   @Test

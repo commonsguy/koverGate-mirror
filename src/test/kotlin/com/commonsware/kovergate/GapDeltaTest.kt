@@ -45,7 +45,63 @@ class GapDeltaTest {
     val delta = computeGapDelta(baseline, current)
 
     assertEquals(BaselineStatus.PRESENT, delta.baseline)
-    assertEquals(MetricDelta(percentDelta = 10.0, coveredDelta = 10, totalDelta = 0), delta.metrics["LINE"])
+    assertEquals(
+      MetricDelta(percentDelta = 10.0, coveredDelta = 10, totalDelta = 0, headroomDelta = 10, headroom = 0),
+      delta.metrics["LINE"],
+    )
+  }
+
+  @Test
+  fun `headroom and headroomDelta are computed from covered, total, and threshold, not read from a stored field`() {
+    val baseline = report(metrics = mapOf("LINE" to MetricJson(179, 200, 89.5, 90, false)))
+    val current = report(metrics = mapOf("LINE" to MetricJson(180, 200, 90.0, 90, true)))
+
+    val delta = computeGapDelta(baseline, current)
+
+    val lineDelta = delta.metrics.getValue("LINE")
+
+    assertEquals(0, lineDelta.headroom)
+    assertEquals(1, lineDelta.headroomDelta)
+  }
+
+  @Test
+  fun `headroomDelta and headroom are null when the current metric has zero total`() {
+    val baseline = report(metrics = mapOf("LINE" to MetricJson(90, 100, 90.0, 90, true)))
+    val current = report(metrics = mapOf("LINE" to MetricJson(0, 0, 0.0, 90, true)))
+
+    val delta = computeGapDelta(baseline, current)
+
+    val lineDelta = delta.metrics.getValue("LINE")
+
+    assertEquals(null, lineDelta.headroom)
+    assertEquals(null, lineDelta.headroomDelta)
+  }
+
+  @Test
+  fun `headroomDelta is null when the baseline metric has zero total, but headroom still reflects current`() {
+    val baseline = report(metrics = mapOf("LINE" to MetricJson(0, 0, 0.0, 90, true)))
+    val current = report(metrics = mapOf("LINE" to MetricJson(90, 100, 90.0, 90, true)))
+
+    val delta = computeGapDelta(baseline, current)
+
+    val lineDelta = delta.metrics.getValue("LINE")
+
+    assertEquals(0, lineDelta.headroom)
+    assertEquals(null, lineDelta.headroomDelta)
+  }
+
+  @Test
+  fun `headroomDelta conflates a threshold change between builds with the coverage change`() {
+    val baseline = report(metrics = mapOf("LINE" to MetricJson(90, 100, 90.0, 80, true)))
+    val current = report(metrics = mapOf("LINE" to MetricJson(90, 100, 90.0, 95, false)))
+
+    val delta = computeGapDelta(baseline, current)
+
+    val lineDelta = delta.metrics.getValue("LINE")
+
+    assertEquals(0, lineDelta.coveredDelta)
+    assertEquals(-5, lineDelta.headroom)
+    assertEquals(-15, lineDelta.headroomDelta)
   }
 
   @Test

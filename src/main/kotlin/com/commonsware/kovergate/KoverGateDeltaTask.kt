@@ -50,6 +50,22 @@ internal fun renderDeltaSummary(projectPath: String, delta: GapDeltaReport): Str
     else -> renderMovedSummary(projectPath, delta)
   }
 
+/**
+ * Renders the headroom-movement parenthetical for a delta's per-metric summary line: `(headroom B → C)` showing the
+ * baseline and current values, `(headroom C, unchanged)` when [MetricDelta.headroomDelta] is zero, or an empty string
+ * when the metric has no headroom on either side (zero total on the current side, or on the baseline side).
+ */
+private fun renderHeadroomMovement(metric: MetricDelta): String {
+  val headroom = metric.headroom
+  val headroomDelta = metric.headroomDelta
+
+  return when {
+    headroom == null || headroomDelta == null -> ""
+    headroomDelta == 0 -> "  (headroom $headroom, unchanged)"
+    else -> "  (headroom ${headroom - headroomDelta} → $headroom)"
+  }
+}
+
 /** Renders the multi-line summary for a delta with a present baseline and at least one metric or file movement. */
 private fun renderMovedSummary(projectPath: String, delta: GapDeltaReport): String {
   val fileCount = delta.files.size
@@ -60,8 +76,9 @@ private fun renderMovedSummary(projectPath: String, delta: GapDeltaReport): Stri
 
     for ((name, metric) in delta.metrics.entries.sortedBy { it.key }) {
       val sign = if (metric.percentDelta >= 0) "+" else ""
+      val headroomSuffix = renderHeadroomMovement(metric)
 
-      appendLine("  $name: $sign${metric.percentDelta}%")
+      appendLine("  $name: $sign${metric.percentDelta}%$headroomSuffix")
     }
 
     append("  $fileCount $fileSuffix changed")

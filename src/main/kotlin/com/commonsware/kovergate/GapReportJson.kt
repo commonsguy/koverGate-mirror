@@ -55,6 +55,8 @@ public data class GapReport(
  * @param percent the coverage percentage, computed as `covered / total * 100`
  * @param threshold the minimum required coverage percentage for this metric
  * @param passed true if [percent] is greater than or equal to [threshold]
+ * @param headroom covered units separating this metric from [threshold] — positive when passing with room to spare,
+ *   negative when short by that many, `null` when [total] is zero (nothing instrumented)
  */
 @Serializable
 public data class MetricJson(
@@ -63,6 +65,7 @@ public data class MetricJson(
   val percent: Double,
   val threshold: Int,
   val passed: Boolean,
+  val headroom: Int? = null,
 )
 
 /**

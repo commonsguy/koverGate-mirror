@@ -272,11 +272,11 @@ On failure, the task prints a summary to the build log and then fails:
 
 ```
 Coverage gate FAILED for :your-module
-  Line: 88.5% (177/200) [FAIL]  [min: 90%]
-  Branch: 91.2% (52/57) [PASS]
-  Instruction: 89.1% (890/999) [FAIL]  [min: 90%]
-  Method: 96.0% (48/50) [PASS]
-  Class: 100.0% (12/12) [PASS]
+  Line: 88.5% (177/200) [FAIL]  [min: 90%]  needs 3 more lines
+  Branch: 91.2% (52/57) [PASS]  headroom: 2 branches
+  Instruction: 89.1% (890/999) [FAIL]  [min: 90%]  needs 10 more instructions
+  Method: 96.0% (48/50) [PASS]  headroom: 1 method
+  Class: 100.0% (12/12) [PASS]  headroom: 12 classes
 
 Files with gaps (most missed instructions first):
   Foo.kt  [61 cold, 8 residual]
@@ -285,6 +285,11 @@ Files with gaps (most missed instructions first):
   Bar.kt  [19 cold]
     Line 113 uncovered
 ```
+
+Every metric line carries a headroom suffix, pass or fail alike: `needs N more <unit>` for a metric short of its
+threshold, `headroom: N <unit>` for the covered units separating it from the threshold, or `[not instrumented]` for a
+metric with zero instrumented units (nothing to compute a distance to). A small positive headroom (`headroom: 1
+method` above) is worth noticing even on a passing build — it is one unrelated commit away from failing.
 
 ### JSON Gap Report
 
@@ -295,11 +300,11 @@ The report is written to `<module>/build/reports/kover/gap-report.json` on every
   "module": ":your-module",
   "passed": false,
   "metrics": {
-    "LINE":        { "covered": 177, "total": 200, "percent": 88.5, "threshold": 90, "passed": false },
-    "INSTRUCTION": { "covered": 890, "total": 999, "percent": 89.1, "threshold": 90, "passed": false },
-    "BRANCH":      { "covered":  52, "total":  57, "percent": 91.2, "threshold": 80, "passed": true  },
-    "METHOD":      { "covered":  48, "total":  50, "percent": 96.0, "threshold": 95, "passed": true  },
-    "CLASS":       { "covered":  12, "total":  12, "percent": 100.0,"threshold": 100,"passed": true  }
+    "LINE":        { "covered": 177, "total": 200, "percent": 88.5, "threshold": 90, "passed": false, "headroom": -3 },
+    "INSTRUCTION": { "covered": 890, "total": 999, "percent": 89.1, "threshold": 90, "passed": false, "headroom": -10 },
+    "BRANCH":      { "covered":  52, "total":  57, "percent": 91.2, "threshold": 80, "passed": true,  "headroom": 2 },
+    "METHOD":      { "covered":  48, "total":  50, "percent": 96.0, "threshold": 95, "passed": true,  "headroom": 1 },
+    "CLASS":       { "covered":  12, "total":  12, "percent": 100.0,"threshold": 100,"passed": true,  "headroom": 12 }
   },
   "files": [
     {
@@ -342,6 +347,8 @@ Each file entry also carries `gapKind`, the structural shape of its gap derived 
 | empty            | empty                   | `branchArmsOnly` |
 
 `dominantGapKind` names whichever of `missedInstructionsCold` or `missedInstructionsResidual` is larger (`cold` or `residual`), and is absent when the two are equal — including when both are zero. A `gapKind` of `residual` means the gap's instructions did execute, but incompletely — it does **not** mean the gap is safe to ignore: residual missed instructions still count toward the coverage metrics exactly like cold ones, so a `residual`-only or `residual`-dominant file can still fail the gate.
+
+Each metric also carries `headroom`: the covered units separating it from `threshold` — positive when passing with room to spare, negative when short by that many, `null` when `total` is zero (nothing instrumented, so no meaningful distance to compute). It is computed against the *rounded* percentage the gate actually compares (the gate rounds to one decimal place before checking against `threshold`), so it will not always match a hand-computed `threshold × total`; a metric can sit at the rounding boundary and need one fewer (or one more) covered unit than that naive multiplication suggests.
 
 > **Note:** Every leaf-module `gap-report.json` also carries a `source` provenance block (after `files`) recording which XML the numbers came from and whether it is stale. It is omitted from the example above for brevity — see [Report Provenance & Freshness](#report-provenance--freshness). The aggregate report carries the same block inside each entry of its `modules` array.
 
@@ -642,7 +649,7 @@ Every run of `koverGateGenerateReport` rotates its just-written `gap-report.json
   "module": ":your-module",
   "baseline": "present",
   "metrics": {
-    "LINE": { "percentDelta": -2.2, "coveredDelta": -6, "totalDelta": 0 }
+    "LINE": { "percentDelta": -2.2, "coveredDelta": -6, "totalDelta": 0, "headroomDelta": -6, "headroom": 1 }
   },
   "files": [
     {
@@ -662,6 +669,8 @@ Every run of `koverGateGenerateReport` rotates its just-written `gap-report.json
 `baseline` is `"absent"` — never all-zeros — when there is nothing to compare against (the first build, or any build immediately after `clean`, since the baseline lives in `build/` alongside every other koverGate output). Treat `"absent"` as "no answer available," not as "no change." `metrics` and `files` are both empty in that case.
 
 `files` lists only files whose counts moved; a file with no change at all is omitted, and a file that newly appeared or fully closed is compared against all-zero counts on the missing side. `status` is `"worsened"` or `"improved"`, judged solely by the change in total missed instructions (`missedInstructionsColdDelta + missedInstructionsResidualDelta`) — a file whose instruction sum is unchanged but whose line counts shifted (e.g. from an unrelated structural edit) is classified `"improved"`. Deltas are file-level counts only, never line numbers: a structural edit shifts every later line number in a file, so comparing line-number sets would report the whole file as simultaneously newly-covered and newly-uncovered.
+
+Each metric also carries `headroomDelta` (the change in headroom, `current - baseline`) and `headroom` (the current build's headroom) — both `null` when either side's headroom is `null` (zero total on that side; `headroom` alone is `null` only when the *current* side is zero-total). `headroomDelta` is recomputed from each side's `covered`/`total`/`threshold`, not read from a stored field, so it works even against a baseline written by an older KoverGate. Two things to know before reading it: if `threshold` changed between the two builds, `headroomDelta` conflates that change with the coverage change — headroom is defined relative to whichever threshold was in force, so this is honest but easy to misread against `coveredDelta`; and a metric that gained instrumented units can lose headroom even while `coveredDelta` is positive, since the required covered count rises with `total`. The console summary shows the same movement inline, e.g. `INSTRUCTION: -0.1%  (headroom 9 → 1)`, or `(headroom 9, unchanged)` when `headroomDelta` is zero.
 
 `koverGateDelta` never fails the build — it is a diagnostic alongside `koverGateBump` and `koverGateDoctor`, not a gate. It also never checks out or reads git; if you need "did I cause this regression relative to `main`," compare `koverGateScopedReport`'s output against your own judgment of the diff, since answering that question precisely would require rebuilding `main`'s coverage from scratch.
 

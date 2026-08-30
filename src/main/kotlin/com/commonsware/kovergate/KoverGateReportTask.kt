@@ -54,6 +54,8 @@ internal data class MetricResult(
   val threshold: Int,
   /** True if covered meets or exceeds the threshold. */
   val passed: Boolean,
+  /** Covered units separating this metric from its threshold; see [computeHeadroom]. */
+  val headroom: Int? = null,
 )
 
 /**
@@ -71,13 +73,15 @@ internal fun computePercent(covered: Int, missed: Int): Double {
 /** Creates a MetricResult by calculating percent and determining pass status. */
 internal fun computeMetricResult(covered: Int, missed: Int, threshold: Int): MetricResult {
   val percent = computePercent(covered, missed)
+  val total = covered + missed
 
   return MetricResult(
     covered = covered,
-    total = covered + missed,
+    total = total,
     percent = percent,
     threshold = threshold,
     passed = percent >= threshold,
+    headroom = computeHeadroom(covered, total, threshold),
   )
 }
 
@@ -117,6 +121,22 @@ private fun leverageAnnotation(file: FileCoverage): String {
 }
 
 /**
+ * Renders the headroom suffix for a metric's console line: `[not instrumented]` when [headroom] is `null` (the metric
+ * has no instrumented units), a deficit (`needs N more <unit>`) when negative, or spare units (`headroom: N <unit>`)
+ * otherwise. The unit word is singular for a magnitude of exactly one and plural otherwise.
+ */
+private fun renderHeadroomSuffix(metric: CoverageMetric, headroom: Int?): String =
+  when {
+    headroom == null -> "  [not instrumented]"
+    headroom < 0 -> "  needs ${-headroom} more ${unitFor(metric, -headroom)}"
+    else -> "  headroom: $headroom ${unitFor(metric, headroom)}"
+  }
+
+/** The singular or plural unit word for [metric], chosen by whether [count] is exactly one. */
+private fun unitFor(metric: CoverageMetric, count: Int): String =
+  if (count == 1) metric.unitSingular else metric.unitPlural
+
+/**
  * Builds a human-readable console summary of coverage results. Shows passed/failed status for each metric with counts,
  * thresholds, and details about uncovered lines and missed branches per file.
  */
@@ -137,10 +157,11 @@ internal fun buildConsoleOutput(
   for ((metric, result) in metricResults) {
     val tag = if (result.passed) "[PASS]" else "[FAIL]"
     val minSuffix = if (!result.passed) "  [min: ${result.threshold}%]" else ""
+    val headroomSuffix = renderHeadroomSuffix(metric, result.headroom)
 
     appendLine(
       "  ${metric.name.lowercase().replaceFirstChar { it.uppercase() }}: " +
-        "${result.percent}% (${result.covered}/${result.total}) $tag$minSuffix"
+        "${result.percent}% (${result.covered}/${result.total}) $tag$minSuffix$headroomSuffix"
     )
   }
 
@@ -211,7 +232,7 @@ internal fun buildJsonOutput(params: JsonOutputParams): String {
       passed = passed,
       metrics =
         metricResults.entries.associate { (metric, r) ->
-          metric.name to MetricJson(r.covered, r.total, r.percent, r.threshold, r.passed)
+          metric.name to MetricJson(r.covered, r.total, r.percent, r.threshold, r.passed, r.headroom)
         },
       files =
         filesWithGaps.map { file ->

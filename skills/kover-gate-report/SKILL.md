@@ -23,7 +23,9 @@ After writing or modifying tests in a module, check coverage gaps and close them
    ```
 
 3. **Interpret results:**
-   - If `"passed": true` — coverage requirements are met. Done.
+   - If `"passed": true` — coverage requirements are met. Done. Still check each metric's `headroom`: a small
+     positive value (e.g. `headroom: 1`) means the module is one unrelated commit away from failing, and is worth
+     flagging even though the gate currently passes.
    - If `"passed": false` — examine the `files` array, which arrives ordered by missed-instruction leverage (most missed instructions first), so work it top-down. Each entry lists:
      - `uncoveredLines`: line numbers with **zero** covered instructions (`ci == 0`) — genuinely never executed; write tests for these
      - `partiallyCoveredLines`: line numbers with both covered and missed instructions (`ci > 0 && mi > 0`) — mostly exercised; the residual is frequently synthetic duplicate bytecode (inlined lambdas, coroutine state machines) that no ordinary test can close. Verify against the source before writing tests
@@ -467,8 +469,10 @@ To answer "did my last edit make coverage better or worse," without checking out
 Reading `baseline` first matters more than reading anything else in the file:
 
 - `"baseline": "absent"` means **no answer is available** — the first build, or any build immediately after `clean` (the baseline lives under `build/`, so it does not survive one). Do not read `"absent"` as "no change"; `metrics` and `files` are both empty in this case because there is nothing to compare against.
-- `"baseline": "present"` means a real comparison happened. `metrics` carries one entry per metric present in both reports (`percentDelta`, `coveredDelta`, `totalDelta`); `files` carries one entry per file whose counts moved, each with `status: "worsened"` or `"improved"` judged solely by the change in total missed instructions.
+- `"baseline": "present"` means a real comparison happened. `metrics` carries one entry per metric present in both reports (`percentDelta`, `coveredDelta`, `totalDelta`, `headroomDelta`, `headroom`); `files` carries one entry per file whose counts moved, each with `status: "worsened"` or `"improved"` judged solely by the change in total missed instructions.
 
 A malformed leftover baseline file is treated the same as a missing one (`"absent"`) rather than failing the build.
+
+Read `headroom` even on a passing metric: a small positive value is a standing risk worth reporting, since it means the module is one unrelated commit away from failing its gate. `headroomDelta` shows which direction that risk is moving; if it dropped sharply while `coveredDelta` looks fine, check whether `threshold` changed between the two builds — `headroomDelta` conflates a threshold change with a coverage change.
 
 `koverGateDelta` compares build-to-build, not against `main` or any other git ref — that would require rebuilding `main`'s coverage from scratch, which this task deliberately does not do. It never fails the build, same as `koverGateBump` and `koverGateDoctor`.

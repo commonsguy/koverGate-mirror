@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   report and writes `build/reports/kover/gap-delta.json`, with a `baseline` field of `"present"` or `"absent"` (the
   latter never synthesized as all-zeros) and file-level (not line-level) instruction and line-count deltas. Like
   `koverGateBump` and `koverGateDoctor`, it is diagnostic-only and never fails the build.
+- **Threshold headroom** on every metric: `gap-report.json` and the console output now report `headroom`, the
+  covered units separating a metric from its threshold — positive with room to spare, negative when short by that
+  many (`needs N more <unit>` in the console), `null` when the metric has zero instrumented units
+  (`[not instrumented]` in the console). It prints on every metric line, pass and fail alike, since a thin passing
+  headroom is a standing risk worth seeing before it bites. `koverGateDelta`'s `gap-delta.json` gains the matching
+  `headroomDelta` and the current `headroom` on each metric, recomputed from each side's covered/total/threshold so
+  older baselines still work; the console delta summary shows the movement inline, e.g. `(headroom 9 → 1)`.
 
 ### Fixed
 

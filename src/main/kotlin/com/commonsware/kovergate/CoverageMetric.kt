@@ -19,11 +19,14 @@ package com.commonsware.kovergate
 /**
  * The coverage metrics that KoverGate can evaluate. Use [CoverageGateExtension.disabledMetrics] to exclude any metric
  * that does not apply to a given module (e.g., `BRANCH` for modules with no conditional logic).
+ *
+ * @param unitSingular the singular unit word used when rendering a headroom of exactly one (e.g., "line")
+ * @param unitPlural the plural unit word used when rendering any other headroom (e.g., "lines")
  */
-public enum class CoverageMetric {
-  LINE,
-  BRANCH,
-  INSTRUCTION,
-  METHOD,
-  CLASS,
+public enum class CoverageMetric(internal val unitSingular: String, internal val unitPlural: String) {
+  LINE("line", "lines"),
+  BRANCH("branch", "branches"),
+  INSTRUCTION("instruction", "instructions"),
+  METHOD("method", "methods"),
+  CLASS("class", "classes"),
 }

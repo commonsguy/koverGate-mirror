@@ -71,11 +71,30 @@ public data class GapDeltaReport(
 /**
  * Movement of a single coverage metric between the baseline and the current build.
  *
+ * [headroomDelta] and [headroom] are recomputed from each side's `covered`/`total`/`threshold` ([computeHeadroom])
+ * rather than read from a stored field, so a baseline written by an older KoverGate — which has no `headroom` field —
+ * still yields a correct delta.
+ *
+ * Two caveats apply to [headroomDelta]: if the threshold changed between the two builds, it conflates that change with
+ * the coverage change — headroom is defined relative to the threshold in force, so this is honest but worth knowing
+ * when comparing against [coveredDelta]. And a metric that gained instrumented units can lose headroom even while
+ * [coveredDelta] is positive, since the required covered count rises with `total`.
+ *
  * @param percentDelta the change in coverage percentage (`current - baseline`), rounded to 1 decimal place
  * @param coveredDelta the change in covered units
  * @param totalDelta the change in total instrumented units
+ * @param headroomDelta the change in headroom (`current - baseline`), or `null` when either side's headroom is `null`
+ *   (zero total on that side)
+ * @param headroom the current build's headroom, or `null` when the current side has zero total
  */
-@Serializable public data class MetricDelta(val percentDelta: Double, val coveredDelta: Int, val totalDelta: Int)
+@Serializable
+public data class MetricDelta(
+  val percentDelta: Double,
+  val coveredDelta: Int,
+  val totalDelta: Int,
+  val headroomDelta: Int?,
+  val headroom: Int?,
+)
 
 /**
  * Movement of a single file's coverage gap between the baseline and the current build. A file present in only one
@@ -137,12 +156,20 @@ private fun FileGap.toCounts() =
 private fun roundPercentDelta(delta: Double): Double = (delta * ONE_DECIMAL_SCALE).roundToInt() / ONE_DECIMAL_SCALE
 
 /** Computes the delta between two already-rounded coverage percentages, one from each report. */
-private fun computeMetricDelta(baseline: MetricJson, current: MetricJson) =
-  MetricDelta(
+private fun computeMetricDelta(baseline: MetricJson, current: MetricJson): MetricDelta {
+  val baselineHeadroom = computeHeadroom(baseline.covered, baseline.total, baseline.threshold)
+  val currentHeadroom = computeHeadroom(current.covered, current.total, current.threshold)
+  val headroomDelta =
+    if (baselineHeadroom != null && currentHeadroom != null) currentHeadroom - baselineHeadroom else null
+
+  return MetricDelta(
     percentDelta = roundPercentDelta(current.percent - baseline.percent),
     coveredDelta = current.covered - baseline.covered,
     totalDelta = current.total - baseline.total,
+    headroomDelta = headroomDelta,
+    headroom = currentHeadroom,
   )
+}
 
 /** Computes the field-by-field delta between [baseline] and [current] counts, plus the [DeltaStatus] that follows. */
 private fun computeFileDelta(name: String, packageName: String, baseline: FileCounts, current: FileCounts): FileDelta {

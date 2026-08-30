@@ -190,6 +190,24 @@ class DeltaFunctionalTest {
   }
 
   @Test
+  fun `second build after a coverage-reducing edit reports headroomDelta`() {
+    writeSettingsFile()
+    writeBuildFile()
+    writePartiallyCoveredSource()
+
+    runner("koverGateDelta").build()
+    writeUncoveredMultiplyMethod()
+
+    runner("koverGateDelta").build()
+    val deltaContent = deltaReportFile().readText()
+
+    assertTrue(
+      deltaContent.contains("headroomDelta"),
+      "Metric delta should carry headroomDelta. Output:\n$deltaContent",
+    )
+  }
+
+  @Test
   fun `a malformed baseline file is tolerated as absent without failing the build`() {
     writeSettingsFile()
     writeBuildFile()
