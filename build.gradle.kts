@@ -12,6 +12,7 @@ plugins {
   alias(libs.plugins.ktfmt.gradle)
   alias(libs.plugins.plugin.publish)
   alias(libs.plugins.sort.dependencies)
+  alias(libs.plugins.version.catalog.update)
 }
 
 group = "com.commonsware.kovergate"
