@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-08-31
 
 ### Fixed
 
@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headroom is a standing risk worth seeing before it bites. `koverGateDelta`'s `gap-delta.json` gains the matching
   `headroomDelta` and the current `headroom` on each metric, recomputed from each side's covered/total/threshold so
   older baselines still work; the console delta summary shows the movement inline, e.g. `(headroom 9 → 1)`.
+
+### Changed
+
+- Bumped Kover dependency from 0.9.8 to 0.9.9.
 
 ### Fixed
 
@@ -218,6 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
+[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.7.0...HEAD
+[0.7.0]: https://codeberg.org/commonsguy/koverGate/compare/0.6.0...0.7.0
 [0.6.0]: https://codeberg.org/commonsguy/koverGate/compare/0.5.0...0.6.0
 [0.5.0]: https://codeberg.org/commonsguy/koverGate/compare/0.4.0...0.5.0
 [0.4.0]: https://codeberg.org/commonsguy/koverGate/compare/0.3.0...0.4.0

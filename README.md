@@ -16,8 +16,8 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 
 ```kotlin
 plugins {
-    id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.6.0"
+    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("com.commonsware.kovergate") version "0.7.0"
 }
 ```
 
@@ -110,8 +110,8 @@ Kover instruments only JVM-based test tasks. Instrumented tests (`androidTest/`)
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.6.0"
+    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("com.commonsware.kovergate") version "0.7.0"
 }
 
 koverGate {
@@ -127,8 +127,8 @@ Apply Kover with `useJacoco()` so it emits JaCoCo-compatible exec data, then mer
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.6.0"
+    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("com.commonsware.kovergate") version "0.7.0"
     jacoco
 }
 
@@ -180,7 +180,7 @@ When Kover is not applied at all, the Gradle `jacoco` plugin handles unit-test e
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.6.0"
+    id("com.commonsware.kovergate") version "0.7.0"
     jacoco
 }
 
@@ -224,7 +224,7 @@ For multi-module builds, apply the plugin to the root project as well as each su
 **Root `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("com.commonsware.kovergate") version "0.6.0"
+    id("com.commonsware.kovergate") version "0.7.0"
 }
 ```
 
@@ -235,8 +235,8 @@ If you do not need pretty-printed aggregate JSON, you can omit `koverGate {}` at
 **Each submodule `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.6.0"
+    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("com.commonsware.kovergate") version "0.7.0"
 }
 ```
 
