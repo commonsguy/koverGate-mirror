@@ -363,18 +363,20 @@ When the root project plugin is applied, the aggregate report at `build/reports/
     {
       "module": ":core",
       "passed": true,
-      "metrics": { "LINE": { "covered": 200, "total": 200, "percent": 100.0, "threshold": 100, "passed": true } },
+      "metrics": { "LINE": { "covered": 200, "total": 200, "percent": 100.0, "threshold": 100, "passed": true, "headroom": 0 } },
       "files": []
     },
     {
       "module": ":app",
       "passed": true,
-      "metrics": { "LINE": { "covered": 150, "total": 150, "percent": 100.0, "threshold": 100, "passed": true } },
+      "metrics": { "LINE": { "covered": 150, "total": 150, "percent": 100.0, "threshold": 100, "passed": true, "headroom": 0 } },
       "files": []
     }
   ]
 }
 ```
+
+`headroom` is omitted only when a metric's `total` is zero; every other real metric carries it, as shown above, along with the `source` block noted just above this example.
 
 ## Scoped Gap Report (Changed Lines)
 
@@ -382,7 +384,7 @@ The `koverGateScopedReport` task filters the gap report to only the lines **chan
 
 ### What It Does
 
-`koverGateScopedReport` depends on `koverGateGenerateReport` (the non-gating JSON writer) and reads its `gap-report.json`. It then diffs the working tree against the merge-base of the configured base ref and `HEAD` — capturing committed and uncommitted changes to tracked files, plus every gap line in untracked (never `git add`-ed), non-gitignored files in full — and keeps only the `uncoveredLines` and `missedBranchLines` entries that are in scope. The result is written to `build/reports/kover/scoped-gap-report.json`. Because it depends on the generate step rather than the gate, it always completes — even when overall coverage is below threshold.
+`koverGateScopedReport` depends on `koverGateGenerateReport` (the non-gating JSON writer) and reads its `gap-report.json`. It then diffs the working tree against the merge-base of the configured base ref and `HEAD` — capturing committed and uncommitted changes to tracked files, plus every gap line in untracked (never `git add`-ed), non-gitignored files in full — and keeps only the `uncoveredLines`, `missedBranchLines`, and `partiallyCoveredLines` entries that are in scope. The result is written to `build/reports/kover/scoped-gap-report.json`. Because it depends on the generate step rather than the gate, it always completes — even when overall coverage is below threshold.
 
 > **Note:** Untracked, non-gitignored files are included in full — every gap line counts as in scope, since there is no prior committed version to diff against. Add a file to `.gitignore` if you need it excluded.
 
@@ -496,11 +498,12 @@ Every gap report records **where its numbers came from**, so a surprising verdic
 When `stale` is `true`, `koverGateGenerateReport` logs a warning (it never fails the build):
 
 ```
-koverGate: coverage report may be STALE.
+KoverGate: coverage report may be STALE (build-script timestamp heuristic).
   Kover XML: /abs/path/.../report.xml
   XML modified:          2026-06-18T14:03:11Z
   Build script modified: 2026-06-19T08:00:00Z
-  The XML predates your build configuration; re-run with --rerun-tasks to regenerate coverage.
+  A build script is newer than the Kover XML, so coverage may predate your current config.
+  This is a timestamp heuristic, not a guarantee; re-run with --rerun-tasks to regenerate coverage.
 ```
 
 This catches the case where a cached or up-to-date Kover XML predates a change to your coverage configuration (for example, adding an `excludes` filter) and would otherwise produce a confident but wrong verdict. The signal is a coarse heuristic — any build-script edit can trigger it — so it is a *warning*, never a gate failure.
@@ -514,7 +517,7 @@ The `stale` flag above is a build-script **timestamp heuristic**: it only compar
 koverGate adds a second, complementary signal for exactly that. When a module's `koverGateReport` gate runs (executes or fails) while Gradle serves that module's `koverXmlReport*` task **up-to-date or from cache**, koverGate logs a warning at the end of the build:
 
 ```
-koverGate freshness: the Kover XML for :app was reused (UP_TO_DATE) this build while its coverage gate ran; if the verdict looks wrong, re-run with --rerun-tasks to regenerate coverage.
+KoverGate freshness: the Kover XML for :app was reused (UP_TO_DATE) this build while its coverage gate ran; if the verdict looks wrong, re-run with --rerun-tasks to regenerate coverage.
 ```
 
 This is the situation in which a verdict can look wrong because Gradle did not rebuild the Kover XML from fresh inputs. Like the staleness heuristic, it never fails the build — re-run with `--rerun-tasks` to force regeneration.
@@ -545,7 +548,7 @@ The two signals above catch a report that is *old*. koverGate also detects a rep
 - **After-read rewrite** — the XML changed again after the gate read it but before the build ended. The gate parsed the producer's own output, so this build's verdict is correct, but the path is contended and a future build may not be so lucky. This is console-only (it cannot reach `gap-report.json`, since it is discovered after the JSON is written) and never fails the build:
 
   ```
-  koverGate: coverage report for :app was rewritten after :app's gate read it; this build's verdict is unaffected, but the report path is contended.
+  KoverGate: coverage report for :app was rewritten after :app's gate read it; this build's verdict is unaffected, but the report path is contended.
     Kover XML: /abs/path/.../report.xml
     Gate read:  modified=2026-06-18T14:03:11Z size=48213
     Now:        modified=2026-06-18T14:03:15Z size=52010
@@ -573,7 +576,7 @@ For a one-command snapshot of everything that decides a verdict, run:
 It prints the configured thresholds (and which metrics are disabled), the Kover XML the gate will read, whether that XML exists and is stale, and the packages excluded via `attributeCoverageFrom` — without running tests or failing the build:
 
 ```
-koverGate doctor for :your-module
+KoverGate doctor for :your-module
 
 Thresholds:
   LINE: 100% (enabled)
@@ -584,9 +587,10 @@ Thresholds:
 
 Kover XML: /abs/path/.../report.xml
   exists: true
-  modified: 2026-06-18T14:03:11Z
-  newest build script: 2026-06-17T09:12:44Z
-  stale: false
+  Freshness (build-script timestamp heuristic):
+    modified: 2026-06-18T14:03:11Z
+    newest build script: 2026-06-17T09:12:44Z
+    stale: false
   Report-contention guard: FULL
 
 Excluded packages (attributeCoverageFrom):

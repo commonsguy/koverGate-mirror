@@ -88,7 +88,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.8"
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
     jacoco
 }
 
@@ -141,7 +141,7 @@ instrumented-test exec:
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.5.0"
+    id("com.commonsware.kovergate") version "0.6.0"
     jacoco
 }
 
