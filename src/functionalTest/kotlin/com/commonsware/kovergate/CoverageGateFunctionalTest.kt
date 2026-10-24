@@ -501,6 +501,140 @@ class CoverageGateFunctionalTest {
     assertTrue(result.output.contains("Coverage gate PASSED"))
   }
 
+  /**
+   * Writes a build script whose `lateKoverXml` producer is registered inside `afterEvaluate`, which runs after
+   * koverGate's own `afterEvaluate` — the same ordering Kover's Android variant tasks have.
+   */
+  private fun writeLateProducerBuildFile(koverGateBlock: String) {
+    File(projectDir, "build.gradle.kts")
+      .writeText(
+        """
+        import org.gradle.api.file.RegularFileProperty
+        import org.gradle.api.tasks.InputFile
+        import org.gradle.api.tasks.OutputFile
+        import org.gradle.api.tasks.TaskAction
+
+        plugins {
+            kotlin("jvm") version "2.0.21"
+            id("org.jetbrains.kotlinx.kover") version "0.9.8"
+            id("com.commonsware.kovergate")
+        }
+        repositories { mavenCentral() }
+        dependencies { testImplementation(kotlin("test")) }
+        tasks.test { useJUnitPlatform() }
+        abstract class CopyReport : DefaultTask() {
+            @get:InputFile abstract val source: RegularFileProperty
+            @get:OutputFile abstract val target: RegularFileProperty
+            @TaskAction fun run() {
+                source.get().asFile.copyTo(target.get().asFile, overwrite = true)
+            }
+        }
+        afterEvaluate {
+            tasks.register<CopyReport>("lateKoverXml") {
+                dependsOn("koverXmlReportJvm")
+                source.set(layout.file(tasks.named("koverXmlReportJvm").map { it.outputs.files.singleFile }))
+                target.set(layout.buildDirectory.file("late/report.xml"))
+            }
+        }
+        $koverGateBlock
+        """
+          .trimIndent()
+      )
+  }
+
+  @Test
+  fun `xmlReportTask naming a producer registered after koverGate's afterEvaluate is resolved`() {
+    writeSettingsFile()
+    writeLateProducerBuildFile("koverGate { xmlReportTask.set(\"lateKoverXml\") }")
+    writeSourceFile(covered = true)
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":lateKoverXml")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+
+    val report = Json.decodeFromString<GapReport>(File(projectDir, "build/reports/kover/gap-report.json").readText())
+    val xmlPath = report.source?.xmlPath.orEmpty()
+
+    assertTrue(
+      xmlPath.replace('\\', '/').endsWith("build/late/report.xml"),
+      "Expected the gap report to read the late producer's output; got '$xmlPath'",
+    )
+  }
+
+  @Test
+  fun `late producer under the auto branch reuses the configuration cache`() {
+    writeSettingsFile()
+    writeLateProducerBuildFile("koverGate { xmlReportTask.set(\"lateKoverXml\") }")
+    writeSourceFile(covered = true)
+
+    runner("koverGateReport", "--configuration-cache").build()
+
+    val result = runner("koverGateReport", "--configuration-cache").build()
+
+    assertTrue(
+      result.output.contains("Reusing configuration cache"),
+      "Expected configuration cache to be reused on second run. Output:\n${result.output}",
+    )
+  }
+
+  @Test
+  fun `xmlReportFile override with a producer registered after koverGate's afterEvaluate reports FULL guard reach`() {
+    writeSettingsFile()
+    writeLateProducerBuildFile(
+      """
+      koverGate {
+          xmlReportFile.set(layout.buildDirectory.file("late/report.xml"))
+          xmlReportTask.set("lateKoverXml")
+      }
+      """
+        .trimIndent()
+    )
+    writeSourceFile(covered = true)
+
+    val doctor = runner("koverGateDoctor").build()
+
+    assertEquals(TaskOutcome.SUCCESS, doctor.task(":koverGateDoctor")?.outcome)
+    assertTrue(doctor.output.contains("Report-contention guard: FULL"), "Doctor output:\n${doctor.output}")
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":lateKoverXml")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+  }
+
+  @Test
+  fun `misspelled xmlReportTask fails the gate at graph time but not at configuration`() {
+    writeSettingsFile()
+    writeBuildFile("koverGate { xmlReportTask.set(\"koverXmlReportJvmm\") }")
+    writeSourceFile(covered = true)
+
+    val help = runner("help").build()
+
+    assertEquals(TaskOutcome.SUCCESS, help.task(":help")?.outcome)
+
+    val result = runner("koverGateReport").buildAndFail()
+
+    assertTrue(
+      result.output.contains("KoverGate: xmlReportTask 'koverXmlReportJvmm' not found in project ':'"),
+      "Output:\n${result.output}",
+    )
+    assertTrue(result.output.contains("Available koverXmlReport* tasks:"), "Output:\n${result.output}")
+    assertTrue(result.output.contains("koverXmlReportJvm"), "Output:\n${result.output}")
+  }
+
+  @Test
+  fun `doctor reports a misspelled xmlReportTask as unresolved without failing`() {
+    writeSettingsFile()
+    writeBuildFile("koverGate { xmlReportTask.set(\"koverXmlReportJvmm\") }")
+    writeSourceFile(covered = true)
+
+    val result = runner("koverGateDoctor").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateDoctor")?.outcome)
+    assertTrue(result.output.contains("Kover XML: unresolved"), "Output:\n${result.output}")
+  }
+
   @Test
   fun `xmlReportFile override is consumed without Kover applied`() {
     writeSettingsFile()

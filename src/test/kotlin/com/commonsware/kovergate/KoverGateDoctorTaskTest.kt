@@ -206,4 +206,31 @@ class KoverGateDoctorTaskTest {
     assertTrue(output.contains("Report-contention guard: PARTIAL"))
     assertTrue(output.contains("xmlReportTask"))
   }
+
+  @Test
+  fun `doctor output reports an unresolved producer instead of the XML details`() {
+    val problem = "KoverGate: xmlReportTask 'koverXmlReportDebg' not found in project ':app'."
+
+    val output =
+      buildDoctorOutput(
+        DoctorOutputParams(
+          projectPath = ":app",
+          thresholds = allThresholds,
+          disabledMetrics = emptySet(),
+          xmlPath = "",
+          xmlExists = false,
+          provenance = null,
+          resolvedExcludes = listOf("com.example.generated"),
+          guardReach = ContentionGuardReach.FULL,
+          producerProblem = problem,
+        )
+      )
+
+    assertTrue(output.contains("Kover XML: unresolved"))
+    assertTrue(output.contains(problem))
+    assertFalse(output.contains("exists:"))
+    assertFalse(output.contains("stale:"))
+    assertTrue(output.contains("Report-contention guard: FULL"))
+    assertTrue(output.contains("com.example.generated"))
+  }
 }

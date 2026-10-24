@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **`xmlReportTask` now works for Kover's Android variant tasks.** Setting
+  `xmlReportTask.set("koverXmlReportDebug")` on an Android module failed at configuration with "xmlReportTask ...
+  not found", because koverGate looked the task up before Kover had registered it. The task is now resolved lazily,
+  when the task graph is built, in both the auto-detected and `xmlReportFile` override branches, and the producer
+  stamp attaches to it whenever it is registered. A misspelled name still fails clearly, but at that point rather than
+  at configuration: the gate tasks report the `not found` message plus the available `koverXmlReport*` tasks, and
+  `koverGateDoctor` prints `Kover XML: unresolved` with the same message instead of failing.
+
 ## [0.7.0] - 2026-08-31
 
 ### Fixed

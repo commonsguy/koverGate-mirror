@@ -96,6 +96,8 @@ koverGate {
 
 If you forget to set this and no auto-detectable task exists, the build will fail with a message listing the available `koverXmlReport*` tasks to help you choose the right name.
 
+koverGate resolves `xmlReportTask` when the task graph is built, not while the project is being configured. Kover registers its variant tasks late in configuration, so naming one of them works without any ordering tricks. The flip side is that a misspelled name no longer fails configuration: `koverGateReport` and the other gate tasks fail with a `not found` message that lists the available `koverXmlReport*` tasks, while `koverGateDoctor` reports the problem and still succeeds.
+
 ### Android: Merging Unit + Instrumented Coverage
 
 Kover alone cannot see coverage from `androidTest/` instrumented tests — it only instruments JVM-based test tasks. AGP can produce JaCoCo coverage data for connected tests, and merging both at the execution-data level gives a complete picture: a line covered by *either* test type counts as covered.
@@ -601,6 +603,14 @@ When no producer task is known (the `xmlReportFile` override branch with `xmlRep
 
 ```
   Report-contention guard: PARTIAL (no producer task known; set xmlReportTask to restore full detection)
+```
+
+When `xmlReportTask` names a task that does not exist, the doctor still succeeds and replaces the XML details with the problem:
+
+```
+Kover XML: unresolved
+  KoverGate: xmlReportTask 'koverXmlReportDebg' not found in project ':app'. Ensure the task name is correct and the Kover plugin is applied. Available koverXmlReport* tasks: koverXmlReport, koverXmlReportDebug, koverXmlReportRelease.
+  Report-contention guard: FULL
 ```
 
 ### `koverGateBump`

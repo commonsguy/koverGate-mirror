@@ -156,4 +156,40 @@ class CoverageGatePluginTest {
 
     assertTrue(task.prettyPrintJson.get())
   }
+
+  @Test
+  fun `not-found message names the task and project and omits the hint without candidates`() {
+    val message = buildXmlReportTaskNotFoundMessage("koverXmlReportDebg", ":app", emptyList())
+
+    assertEquals(
+      "KoverGate: xmlReportTask 'koverXmlReportDebg' not found in project ':app'. " +
+        "Ensure the task name is correct and the Kover plugin is applied.",
+      message,
+    )
+  }
+
+  @Test
+  fun `not-found message lists available koverXmlReport tasks when there are candidates`() {
+    val message =
+      buildXmlReportTaskNotFoundMessage(
+        "koverXmlReportDebg",
+        ":app",
+        listOf("koverXmlReport", "koverXmlReportDebug", "koverXmlReportRelease"),
+      )
+
+    assertTrue(message.startsWith("KoverGate: xmlReportTask 'koverXmlReportDebg' not found in project ':app'."))
+    assertTrue(
+      message.endsWith(" Available koverXmlReport* tasks: koverXmlReport, koverXmlReportDebug, koverXmlReportRelease.")
+    )
+  }
+
+  @Test
+  fun `qualifiedTaskPath prefixes a nested project path`() {
+    assertEquals(":app:koverXmlReportDebug", qualifiedTaskPath(":app", "koverXmlReportDebug"))
+  }
+
+  @Test
+  fun `qualifiedTaskPath does not double the colon for the root project`() {
+    assertEquals(":koverXmlReportDebug", qualifiedTaskPath(":", "koverXmlReportDebug"))
+  }
 }

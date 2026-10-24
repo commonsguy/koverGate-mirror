@@ -20,7 +20,6 @@ import javax.inject.Inject
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.Task
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
@@ -325,6 +324,9 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
  * wires the guard-reach level `koverGateDoctor` reports (§6). Split out of [CoverageGatePlugin.applyAsLeaf] because it
  * needs no plugin instance state — only [project] and the providers/extension passed in.
  *
+ * A producer named by `xmlReportTask` is never looked up here: Kover registers its Android variant tasks from a nested
+ * `afterEvaluate` that runs after this one, so the name is resolved lazily instead (see [wireNamedProducer]).
+ *
  * @param project the module the plugin is applied to
  * @param extension the `koverGate {}` extension supplying the XML override and producer-task name
  * @param producerStampFileProvider the producer-stamp file's location
@@ -345,14 +347,8 @@ private fun wireProducerResolution(
     val customTaskName = extension.xmlReportTask.get()
 
     if (customTaskName.isNotBlank()) {
-      val producerTask = findNamedTask(project, customTaskName)
-
-      attachProducerStamp(project, producerTask, extension.xmlReportFile, producerStampFileProvider)
-      generateTaskProvider.configure {
-        dependsOn(producerTask)
-        producerTaskPath.set(producerTask.path)
-      }
-      doctorTaskProvider.configure { guardReach.set(ContentionGuardReach.FULL) }
+      attachProducerStamp(project, customTaskName, extension.xmlReportFile, producerStampFileProvider)
+      wireNamedProducer(project, customTaskName, generateTaskProvider, doctorTaskProvider)
     } else {
       doctorTaskProvider.configure { guardReach.set(ContentionGuardReach.PARTIAL) }
     }
@@ -368,8 +364,8 @@ private fun wireProducerResolution(
 }
 
 /**
- * The auto-wired (no `xmlReportFile` override) branch of [wireProducerResolution]: Kover's own XML task is the
- * producer.
+ * The auto-wired (no `xmlReportFile` override) branch of [wireProducerResolution]: a producer task is the source of the
+ * XML, either the one named by `xmlReportTask` (resolved lazily) or Kover's own `koverXmlReportJvm` / `koverXmlReport`.
  */
 private fun wireAutoDetectedKoverProducer(
   project: Project,
@@ -384,38 +380,107 @@ private fun wireAutoDetectedKoverProducer(
     )
   }
 
-  val koverTask = findKoverTask(project, extension)
-  val koverXml = project.layout.file(project.provider { koverTask.outputs.files.singleFile })
+  val customTaskName = extension.xmlReportTask.get()
 
-  attachProducerStamp(project, koverTask, koverXml, producerStampFileProvider)
-  generateTaskProvider.configure {
-    dependsOn(koverTask)
-    xmlReportFile.set(koverXml)
-    producerTaskPath.set(koverTask.path)
-  }
-  doctorTaskProvider.configure {
-    xmlReportFile.set(koverXml)
-    guardReach.set(ContentionGuardReach.FULL)
+  if (customTaskName.isNotBlank()) {
+    val koverXml = project.layout.file(project.provider { findTaskOutputFile(project, customTaskName) })
+
+    generateTaskProvider.configure { xmlReportFile.set(koverXml) }
+    doctorTaskProvider.configure { xmlReportFile.set(koverXml) }
+    attachProducerStamp(project, customTaskName, koverXml, producerStampFileProvider)
+    wireNamedProducer(project, customTaskName, generateTaskProvider, doctorTaskProvider)
+  } else {
+    val koverTask = findKoverTask(project)
+    val koverXml = project.layout.file(project.provider { koverTask.outputs.files.singleFile })
+
+    attachProducerStamp(project, koverTask.name, koverXml, producerStampFileProvider)
+    generateTaskProvider.configure {
+      dependsOn(koverTask)
+      xmlReportFile.set(koverXml)
+      producerTaskPath.set(koverTask.path)
+    }
+    doctorTaskProvider.configure {
+      xmlReportFile.set(koverXml)
+      guardReach.set(ContentionGuardReach.FULL)
+    }
   }
 }
 
 /**
- * Resolves the task that produces the auto-wired Kover XML: honors [CoverageGateExtension.xmlReportTask] when set, else
- * falls back to `koverXmlReportJvm` / `koverXmlReport`.
+ * Wires a producer named by `xmlReportTask` without looking the task up during configuration. The task may be
+ * registered after this plugin's `afterEvaluate` runs (Kover's Android variant tasks are), so the name is resolved only
+ * when the task graph is built: the generate task depends on a provider that throws the not-found message if the name
+ * still does not exist by then, and the doctor receives the same problem as text instead of failing. Callers attach the
+ * producer stamp, which needs the XML location only they know.
  *
  * @param project the module the plugin is applied to
- * @param extension the `koverGate {}` extension supplying an optional variant task name
+ * @param taskName the non-blank `xmlReportTask` value
+ * @param generateTaskProvider the registered `koverGateGenerateReport` task
+ * @param doctorTaskProvider the registered `koverGateDoctor` task
+ */
+private fun wireNamedProducer(
+  project: Project,
+  taskName: String,
+  generateTaskProvider: org.gradle.api.tasks.TaskProvider<KoverGateReportTask>,
+  doctorTaskProvider: org.gradle.api.tasks.TaskProvider<KoverGateDoctorTask>,
+) {
+  val problemProvider = project.provider {
+    if (taskName in project.tasks.names) {
+      null
+    } else {
+      buildXmlReportTaskNotFoundMessage(taskName, project.path, availableKoverXmlReportTasks(project))
+    }
+  }
+
+  generateTaskProvider.configure {
+    dependsOn(
+      project.provider {
+        project.tasks.findByName(taskName)
+          ?: throw GradleException(
+            buildXmlReportTaskNotFoundMessage(taskName, project.path, availableKoverXmlReportTasks(project))
+          )
+      }
+    )
+    producerTaskPath.set(qualifiedTaskPath(project.path, taskName))
+  }
+  doctorTaskProvider.configure {
+    guardReach.set(ContentionGuardReach.FULL)
+    producerProblem.set(problemProvider)
+  }
+}
+
+/**
+ * Returns the names of the project's `koverXmlReport*` tasks, sorted, for the not-found hint.
+ *
+ * @param project the module to inspect
+ * @return the matching task names, possibly empty
+ */
+private fun availableKoverXmlReportTasks(project: Project): List<String> =
+  project.tasks.names.filter { it.startsWith("koverXmlReport") }.sorted()
+
+/**
+ * Returns the single file the named task outputs, or `null` when the task does not exist (yet) so callers evaluating
+ * the result — such as `koverGateDoctor` — never throw.
+ *
+ * @param project the module to inspect
+ * @param taskName the task to look up at evaluation time
+ * @return the task's single output file, or `null` when no such task exists
+ */
+private fun findTaskOutputFile(project: Project, taskName: String): java.io.File? =
+  project.tasks.findByName(taskName)?.outputs?.files?.singleFile
+
+/**
+ * Resolves the task that produces the auto-wired Kover XML when `xmlReportTask` is blank: `koverXmlReportJvm` or
+ * `koverXmlReport`, both registered when Kover is applied.
+ *
+ * @param project the module the plugin is applied to
  * @return the resolved producer task
  */
-private fun findKoverTask(project: Project, extension: CoverageGateExtension) =
-  extension.xmlReportTask
-    .get()
-    .takeIf { it.isNotBlank() }
-    ?.let { customTaskName -> findNamedTask(project, customTaskName) }
-    ?: project.tasks.findByName("koverXmlReportJvm")
+private fun findKoverTask(project: Project) =
+  project.tasks.findByName("koverXmlReportJvm")
     ?: project.tasks.findByName("koverXmlReport")
     ?: run {
-      val candidates = project.tasks.names.filter { it.startsWith("koverXmlReport") }.sorted()
+      val candidates = availableKoverXmlReportTasks(project)
       val hint =
         if (candidates.isNotEmpty()) " Available koverXmlReport* tasks: ${candidates.joinToString(", ")}." else ""
       throw GradleException(
@@ -426,54 +491,73 @@ private fun findKoverTask(project: Project, extension: CoverageGateExtension) =
     }
 
 /**
- * Looks up a task by name, throwing when it does not exist. Shared by [findKoverTask]'s `xmlReportTask` override and by
- * the `xmlReportFile`-override branch's producer resolution (§6), so a typo'd task name fails loudly in both branches
- * rather than silently degrading to no known producer.
+ * Builds the error message for an `xmlReportTask` that names a task the project does not have, appending the project's
+ * available `koverXmlReport*` tasks as a hint when there are any.
  *
- * @param project the module the plugin is applied to
- * @param taskName the task name to resolve
- * @return the resolved task
+ * @param taskName the `xmlReportTask` value that could not be resolved
+ * @param projectPath the Gradle project path (e.g., `:app`)
+ * @param candidates the sorted names of the project's `koverXmlReport*` tasks, possibly empty
+ * @return the complete error message
  */
-private fun findNamedTask(project: Project, taskName: String): Task =
-  project.tasks.findByName(taskName)
-    ?: throw GradleException(
-      "KoverGate: xmlReportTask '$taskName' not found in project '${project.path}'. " +
-        "Ensure the task name is correct and the Kover plugin is applied."
-    )
+internal fun buildXmlReportTaskNotFoundMessage(
+  taskName: String,
+  projectPath: String,
+  candidates: List<String>,
+): String {
+  val hint = if (candidates.isNotEmpty()) " Available koverXmlReport* tasks: ${candidates.joinToString(", ")}." else ""
+
+  return "KoverGate: xmlReportTask '$taskName' not found in project '$projectPath'. " +
+    "Ensure the task name is correct and the Kover plugin is applied.$hint"
+}
 
 /**
- * Appends a configuration-cache-safe `doLast` action to [producerTask] that stamps [xmlFileProvider]'s identity (build
- * id, mtime, size) to [stampFileProvider] the instant the producer finishes — the zero-window baseline the
- * report-contention guard compares a gate's read-time observation against (§3).
+ * Builds a task's fully-qualified path from its project path and name without needing a realized task.
  *
- * The closure captures only [Provider]s (and the freshness-service provider derived from [project] at configuration
- * time), never `project` or a task reference, so it survives the configuration cache.
+ * @param projectPath the Gradle project path; the root project's path is `:`
+ * @param taskName the task name
+ * @return the task path, e.g. `:app:koverXmlReportDebug`, or `:koverXmlReportDebug` for the root project
+ */
+internal fun qualifiedTaskPath(projectPath: String, taskName: String): String =
+  if (projectPath == ":") ":$taskName" else "$projectPath:$taskName"
+
+/**
+ * Attaches a configuration-cache-safe `doLast` action to whichever task is named [producerName] that stamps
+ * [xmlFileProvider]'s identity (build id, mtime, size) to [stampFileProvider] the instant the producer finishes — the
+ * zero-window baseline the report-contention guard compares a gate's read-time observation against (§3).
+ *
+ * The attachment is lazy (`configureEach`), so it also reaches a producer registered after this call, such as Kover's
+ * Android variant tasks. The closure captures only [Provider]s (and the freshness-service provider derived from
+ * [project] at configuration time), never `project` or a task reference, so it survives the configuration cache.
  *
  * @param project the module the plugin is applied to
- * @param producerTask the task that produces the Kover XML the gate reads
+ * @param producerName the name of the task that produces the Kover XML the gate reads
  * @param xmlFileProvider the Kover XML report's location
  * @param stampFileProvider the producer-stamp file's location
  */
 private fun attachProducerStamp(
   project: Project,
-  producerTask: Task,
+  producerName: String,
   xmlFileProvider: Provider<RegularFile>,
   stampFileProvider: Provider<RegularFile>,
 ) {
   val serviceProvider = freshnessServiceProvider(project)
 
-  producerTask.usesService(serviceProvider)
-  producerTask.doLast {
-    val xmlFile = xmlFileProvider.get().asFile
-    val stamp =
-      ProducerStamp(
-        buildId = serviceProvider.get().buildId,
-        xmlModifiedEpochMs = xmlFile.lastModified(),
-        xmlSizeBytes = xmlFile.length(),
-      )
-    val stampFile = stampFileProvider.get().asFile
+  project.tasks.configureEach {
+    if (name == producerName) {
+      usesService(serviceProvider)
+      doLast {
+        val xmlFile = xmlFileProvider.get().asFile
+        val stamp =
+          ProducerStamp(
+            buildId = serviceProvider.get().buildId,
+            xmlModifiedEpochMs = xmlFile.lastModified(),
+            xmlSizeBytes = xmlFile.length(),
+          )
+        val stampFile = stampFileProvider.get().asFile
 
-    stampFile.parentFile.mkdirs()
-    stampFile.writeText(formatStamp(stamp))
+        stampFile.parentFile.mkdirs()
+        stampFile.writeText(formatStamp(stamp))
+      }
+    }
   }
 }

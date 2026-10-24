@@ -52,6 +52,8 @@ internal enum class ContentionGuardReach {
  * @param resolvedExcludes fully-qualified package names excluded via `attributeCoverageFrom`
  * @param guardReach how much of the report-contention guard applies to this module, defaults to
  *   [ContentionGuardReach.FULL]
+ * @param producerProblem why the configured `xmlReportTask` could not be resolved, or null when it resolved; when
+ *   non-null the Kover XML section reports the problem instead of the XML's existence and freshness
  */
 internal data class DoctorOutputParams(
   val projectPath: String,
@@ -62,6 +64,7 @@ internal data class DoctorOutputParams(
   val provenance: SourceProvenance?,
   val resolvedExcludes: List<String>,
   val guardReach: ContentionGuardReach = ContentionGuardReach.FULL,
+  val producerProblem: String? = null,
 )
 
 /**
@@ -81,6 +84,7 @@ internal fun buildDoctorOutput(params: DoctorOutputParams): String = buildString
   val provenance = params.provenance
   val resolvedExcludes = params.resolvedExcludes
   val guardReach = params.guardReach
+  val producerProblem = params.producerProblem
   appendLine("KoverGate doctor for $projectPath")
   appendLine()
 
@@ -96,16 +100,21 @@ internal fun buildDoctorOutput(params: DoctorOutputParams): String = buildString
 
   appendLine()
 
-  appendLine("Kover XML: $xmlPath")
-  appendLine("  exists: $xmlExists")
-
-  if (provenance != null) {
-    appendLine("  Freshness (build-script timestamp heuristic):")
-    appendLine("    modified: ${provenance.xmlModified}")
-    appendLine("    newest build script: ${provenance.newestBuildScriptModified ?: "n/a"}")
-    appendLine("    stale: ${provenance.stale}")
+  if (producerProblem != null) {
+    appendLine("Kover XML: unresolved")
+    appendLine("  $producerProblem")
   } else {
-    appendLine("  (run koverGateGenerateReport to produce it)")
+    appendLine("Kover XML: $xmlPath")
+    appendLine("  exists: $xmlExists")
+
+    if (provenance != null) {
+      appendLine("  Freshness (build-script timestamp heuristic):")
+      appendLine("    modified: ${provenance.xmlModified}")
+      appendLine("    newest build script: ${provenance.newestBuildScriptModified ?: "n/a"}")
+      appendLine("    stale: ${provenance.stale}")
+    } else {
+      appendLine("  (run koverGateGenerateReport to produce it)")
+    }
   }
 
   if (guardReach == ContentionGuardReach.PARTIAL) {
@@ -172,13 +181,19 @@ public abstract class KoverGateDoctorTask : DefaultTask() {
    */
   @get:Internal internal abstract val guardReach: Property<ContentionGuardReach>
 
+  /**
+   * Why the configured `xmlReportTask` could not be resolved, set only when it names a task that does not exist by the
+   * time the task graph is built. Absent when the producer resolved or none was named.
+   */
+  @get:Internal internal abstract val producerProblem: Property<String>
+
   /** Prints the diagnostic. Never fails the build. */
   @TaskAction
   internal fun diagnose() {
-    val xmlFile = xmlReportFile.get().asFile
-    val xmlExists = xmlFile.exists()
+    val xmlFile = xmlReportFile.asFile.orNull
+    val xmlExists = xmlFile?.exists() ?: false
     val provenance =
-      if (xmlExists) {
+      if (xmlFile != null && xmlExists) {
         val buildScriptTimes = buildScripts.files.filter { it.exists() }.map { it.lastModified() }
 
         computeProvenance(xmlFile.absolutePath, xmlFile.lastModified(), buildScriptTimes)
@@ -199,11 +214,12 @@ public abstract class KoverGateDoctorTask : DefaultTask() {
           projectPath = projectPath.get(),
           thresholds = thresholds,
           disabledMetrics = disabledMetrics.get(),
-          xmlPath = xmlFile.absolutePath,
+          xmlPath = xmlFile?.absolutePath.orEmpty(),
           xmlExists = xmlExists,
           provenance = provenance,
           resolvedExcludes = resolvedExcludes.get(),
           guardReach = guardReach.getOrElse(ContentionGuardReach.FULL),
+          producerProblem = producerProblem.orNull,
         )
       )
 
