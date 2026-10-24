@@ -685,5 +685,8 @@ class ScopedReportFunctionalTest {
 
     assertEquals(1, moduleA?.files?.size, "Module :a should have one file with gaps")
     assertEquals(1, moduleB?.files?.size, "Module :b should have one file with gaps")
+
+    // Each module entry carries the scope block
+    assertTrue(aggregate.modules.all { it.scope != null }, "All module reports should record their scope")
   }
 }

@@ -167,6 +167,9 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
         projectPath.set(project.path)
         prettyPrintJson.set(extension.prettyPrintJson)
         baseRef.convention(project.providers.gradleProperty("koverGateBase").orElse("main"))
+        ignoreSpaceChange.convention(
+          project.providers.gradleProperty("koverGateIgnoreSpaceChange").map { it.toBoolean() }.orElse(false)
+        )
         scope.convention(ScopeType.BRANCH.name.lowercase())
         gapReportFile.set(gapReportProvider)
         scopedReportFile.set(project.layout.buildDirectory.file("reports/kover/scoped-gap-report.json"))
@@ -179,6 +182,7 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
         project.providers.of(GitDiffValueSource::class.java) {
           parameters.projectDirectory.set(project.layout.projectDirectory)
           parameters.baseRef.set(baseRef)
+          parameters.ignoreSpaceChange.set(ignoreSpaceChange)
         }
       )
     }

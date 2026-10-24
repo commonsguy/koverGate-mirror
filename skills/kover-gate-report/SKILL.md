@@ -231,6 +231,12 @@ When you only need to cover the lines **you changed on the current branch**, use
 ./gradlew :<module-name>:koverGateScopedReport --base=develop
 ```
 
+**Ignore whitespace-only changes** (off by default): pass `--ignore-space-change` when your branch re-indents existing code, such as wrapping a block, so pre-existing gaps on re-indented lines do not show up as yours:
+```bash
+./gradlew :<module-name>:koverGateScopedReport --ignore-space-change
+```
+This drops lines whose only change is the amount of whitespace. Edits that add whitespace where there was none (`1+2` to `1 + 2`) still count.
+
 ### Multi-Module Scoped Workflow
 
 ```bash
@@ -243,7 +249,7 @@ build/reports/kover/scoped-gap-report.json
 ```
 The aggregate is an `AggregateGapReport` with a `modules` array — one `GapReport` per submodule — and a top-level `passed` that is `true` only when every module has no in-scope gaps.
 
-Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is a per-task option and does not propagate to dependency tasks.
+Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is a per-task option and does not propagate to dependency tasks. The same applies to `--ignore-space-change`: use `-PkoverGateIgnoreSpaceChange=true` at the root.
 
 ### Scoped Report JSON Shape
 
@@ -260,9 +266,12 @@ Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is
       "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }],
       "partiallyCoveredLines": [18]
     }
-  ]
+  ],
+  "scope": { "type": "branch", "ignoreSpaceChange": false }
 }
 ```
+
+The `scope` block records the settings the report was filtered with (`type`, and whether `ignoreSpaceChange` was in effect); it appears only on scoped reports.
 
 Only `uncoveredLines`, `missedBranchLines`, and `partiallyCoveredLines` entries that fall on a changed line appear — a partially covered line on its own is enough to keep a file in the scoped report. Lines that were already uncovered (or partially covered) before your branch are excluded. `missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here — the scoped filter cannot recompute the instruction counts for a filtered subset of lines, so a `gapKind` computed from the filtered result would misrepresent the file's real gap.
 

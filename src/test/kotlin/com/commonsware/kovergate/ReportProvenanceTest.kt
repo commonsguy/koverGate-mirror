@@ -133,4 +133,30 @@ class ReportProvenanceTest {
 
     assertNull(decoded.source)
   }
+
+  @Test
+  fun `GapReport writes the scope block with ignoreSpaceChange even when false`() {
+    val report =
+      GapReport(
+        module = ":m",
+        passed = true,
+        metrics = emptyMap(),
+        files = emptyList(),
+        scope = ScopeProvenance("branch", false),
+      )
+
+    val json = Json.encodeToString(report)
+
+    assertTrue(json.contains(""""scope":{"type":"branch","ignoreSpaceChange":false}"""), "Got: $json")
+    assertEquals(report, Json.decodeFromString<GapReport>(json))
+  }
+
+  @Test
+  fun `GapReport without scope omits the scope key`() {
+    val report = GapReport(module = ":m", passed = true, metrics = emptyMap(), files = emptyList())
+
+    val json = Json.encodeToString(report)
+
+    assertFalse(json.contains("\"scope\""), "Got: $json")
+  }
 }

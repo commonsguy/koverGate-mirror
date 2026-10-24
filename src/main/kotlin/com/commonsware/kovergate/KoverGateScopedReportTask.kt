@@ -61,6 +61,20 @@ public abstract class KoverGateScopedReportTask : DefaultTask() {
   @get:Input public abstract val baseRef: Property<String>
 
   /**
+   * Whether to leave out lines whose only change on the branch is the amount of whitespace, such as re-indentation from
+   * wrapping a block (`git diff --ignore-space-change`).
+   *
+   * Defaults to the Gradle property `koverGateIgnoreSpaceChange` if set to `true`, otherwise `false`. Can be enabled
+   * with the `--ignore-space-change` task option for single-module invocations.
+   */
+  @get:Input
+  @get:Option(
+    option = "ignore-space-change",
+    description = "Ignore whitespace-amount changes when computing changed lines (default: false)",
+  )
+  public abstract val ignoreSpaceChange: Property<Boolean>
+
+  /**
    * The scope filter to apply as a string (e.g., `"branch"`). Corresponds to a [ScopeType] name, case-insensitive.
    *
    * Stored as a `String` rather than `Property<ScopeType>` so the abstract property does not carry an `internal` type
@@ -140,7 +154,8 @@ public abstract class KoverGateScopedReportTask : DefaultTask() {
           )
       }
 
-    val scoped = filter.apply(fullReport)
+    val scoped =
+      filter.apply(fullReport).copy(scope = ScopeProvenance(scope.get().lowercase(), ignoreSpaceChange.get()))
 
     // Write scoped report JSON
     val scopedFile = scopedReportFile.get().asFile

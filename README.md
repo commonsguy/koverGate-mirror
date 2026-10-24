@@ -402,9 +402,16 @@ The `koverGateScopedReport` task filters the gap report to only the lines **chan
 ./gradlew :your-module:koverGateScopedReport --base=develop
 ```
 
-**Multi-module** (use the `-PkoverGateBase` property — `--base` does not propagate across task dependencies):
+**Ignore whitespace-only changes** for a module (off by default):
 ```bash
-./gradlew koverGateScopedReport -PkoverGateBase=main
+./gradlew :your-module:koverGateScopedReport --ignore-space-change
+```
+
+This diffs with `git diff --ignore-space-change`, so lines whose only change is the *amount* of whitespace — typically re-indentation from wrapping a block, or trailing-space edits — drop out of scope. Edits that add whitespace where there was none (such as `1+2` to `1 + 2`) still count. A file whose only changes are re-indentation falls out of scope entirely. Untracked files stay in scope in full.
+
+**Multi-module** (use the `-PkoverGateBase` property — `--base` does not propagate across task dependencies; the same goes for `--ignore-space-change`, so use `-PkoverGateIgnoreSpaceChange=true`):
+```bash
+./gradlew koverGateScopedReport -PkoverGateBase=main -PkoverGateIgnoreSpaceChange=true
 ```
 
 This runs every submodule's `koverGateScopedReport` task and writes an aggregate scoped report at `build/reports/kover/scoped-gap-report.json`.
@@ -428,9 +435,12 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
       "missedBranchLines": [{ "line": 15, "missed": 1, "total": 2 }],
       "partiallyCoveredLines": [18]
     }
-  ]
+  ],
+  "scope": { "type": "branch", "ignoreSpaceChange": false }
 }
 ```
+
+The `scope` block records the settings the report was filtered with: the scope `type`, and whether `ignoreSpaceChange` was in effect. It appears only on scoped reports, never in `gap-report.json`.
 
 `uncoveredLines`, `missedBranchLines`, and `partiallyCoveredLines` are all filtered down to the changed-line subset the same way — a partially covered line on its own is enough to keep a file in scope and flip `passed` to `false`. `missedInstructionsCold`, `missedInstructionsResidual`, `gapKind`, and `dominantGapKind` are all absent here: the scoped filter narrows `gap-report.json`'s existing line lists to the changed subset, but it has no access to the per-line instruction counts needed to recompute the sums for that subset, so a `gapKind` derived from the filtered result would misrepresent the file's real gap. All four fields are left unset rather than publish a number or a label that no longer matches the filtered lines.
 
@@ -447,7 +457,8 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
       "module": ":core",
       "passed": true,
       "metrics": {},
-      "files": []
+      "files": [],
+      "scope": { "type": "branch", "ignoreSpaceChange": false }
     },
     {
       "module": ":app",
@@ -460,7 +471,8 @@ This runs every submodule's `koverGateScopedReport` task and writes an aggregate
           "uncoveredLines": [12],
           "missedBranchLines": []
         }
-      ]
+      ],
+      "scope": { "type": "branch", "ignoreSpaceChange": false }
     }
   ]
 }

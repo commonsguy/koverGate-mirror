@@ -40,12 +40,24 @@ public data class GitDiffResult(
 )
 
 /**
+ * Builds the arguments for the `git diff` that finds the lines changed since [mergeBase].
+ *
+ * @param mergeBase the merge-base commit to diff the working tree against
+ * @param ignoreSpaceChange whether to add `--ignore-space-change`, so lines whose only change is the amount of
+ *   whitespace (such as re-indentation) are left out of the diff
+ * @return the argument list to pass to `git`
+ */
+internal fun buildDiffArgs(mergeBase: String, ignoreSpaceChange: Boolean): List<String> =
+  listOf("diff", "--unified=0") + listOfNotNull("--ignore-space-change".takeIf { ignoreSpaceChange }) + mergeBase
+
+/**
  * A configuration-cache-safe [ValueSource] that reads the lines changed on the current branch relative to a base ref,
  * plus the repository's untracked, non-gitignored file paths.
  *
  * Runs `git rev-parse --show-toplevel`, `git merge-base <baseRef> HEAD`, `git diff --unified=0 <mergeBase>` (diffs the
- * working tree, so uncommitted changes are included), and `git ls-files --others --exclude-standard --full-name` in the
- * project directory, then delegates to [parseUnifiedDiff] for the diff output.
+ * working tree, so uncommitted changes are included; with `--ignore-space-change` when requested), and `git ls-files
+ * --others --exclude-standard --full-name` in the project directory, then delegates to [parseUnifiedDiff] for the diff
+ * output.
  */
 internal abstract class GitDiffValueSource @Inject constructor(private val execOperations: ExecOperations) :
   ValueSource<GitDiffResult, GitDiffValueSource.Params> {
@@ -57,6 +69,9 @@ internal abstract class GitDiffValueSource @Inject constructor(private val execO
 
     /** The base ref to diff against (e.g. `main`). */
     val baseRef: Property<String>
+
+    /** Whether to diff with `--ignore-space-change`, leaving out lines whose only change is whitespace. */
+    val ignoreSpaceChange: Property<Boolean>
   }
 
   override fun obtain(): GitDiffResult {
@@ -65,7 +80,7 @@ internal abstract class GitDiffValueSource @Inject constructor(private val execO
     val gitRoot = File(runGit(projectDir, listOf("rev-parse", "--show-toplevel")).trim())
     val mergeBase = runGit(projectDir, listOf("merge-base", base, "HEAD")).trim()
     // Diff the working tree (no HEAD) so uncommitted changes are included and line numbers match the compiled source.
-    val diff = runGit(projectDir, listOf("diff", "--unified=0", mergeBase))
+    val diff = runGit(projectDir, buildDiffArgs(mergeBase, parameters.ignoreSpaceChange.get()))
     // --full-name forces repo-root-relative output so paths match parseUnifiedDiff's form even when run from a
     // submodule.
     val untrackedOutput = runGit(projectDir, listOf("ls-files", "--others", "--exclude-standard", "--full-name"))

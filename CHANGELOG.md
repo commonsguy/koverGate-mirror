@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`koverGateScopedReport --ignore-space-change`.** Leaves out lines whose only change on the branch is the amount
+  of whitespace, such as re-indentation from wrapping a block, by diffing with `git diff --ignore-space-change`.
+  Edits that add whitespace where there was none still count. It is off by default. For multi-module runs, set
+  `-PkoverGateIgnoreSpaceChange=true`, as `-PkoverGateBase` does for `--base`.
+- **Scoped reports now carry a `scope` block**, `{ "type": "branch", "ignoreSpaceChange": false }`, recording the
+  settings the report was filtered with. It is absent from `gap-report.json`.
+
 ### Fixed
 
 - **`xmlReportTask` now works for Kover's Android variant tasks.** Setting

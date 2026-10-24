@@ -37,6 +37,7 @@ import kotlinx.serialization.Serializable
  * @param metrics map from metric name (e.g., `"LINE"`, `"BRANCH"`) to its coverage details
  * @param files list of source files that have uncovered lines or missed branch lines
  * @param source provenance describing the XML the report was computed from and its freshness, or null if unset
+ * @param scope the scope settings the report was filtered with; set only on scoped reports, null otherwise
  */
 @Serializable
 public data class GapReport(
@@ -45,6 +46,7 @@ public data class GapReport(
   val metrics: Map<String, MetricJson>,
   val files: List<FileGap>,
   val source: SourceProvenance? = null,
+  val scope: ScopeProvenance? = null,
 )
 
 /**
@@ -175,3 +177,13 @@ public data class SourceProvenance(
   val newestBuildScriptModified: String? = null,
   val rewrittenBeforeRead: Boolean = false,
 )
+
+/**
+ * The settings a scoped [GapReport] was filtered with.
+ *
+ * Neither property has a default, so both are always written to the JSON, including an `ignoreSpaceChange` of `false`.
+ *
+ * @param type the name of the scope filter, lowercase (e.g., `"branch"`)
+ * @param ignoreSpaceChange true if lines whose only change was the amount of whitespace were left out of the scope
+ */
+@Serializable public data class ScopeProvenance(val type: String, val ignoreSpaceChange: Boolean)
