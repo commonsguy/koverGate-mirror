@@ -74,12 +74,44 @@ dependencies {
   testRuntimeOnly(libs.junit.platform.launcher)
 }
 
-val functionalTest by
-  tasks.registering(Test::class) {
+/** Passes the Kover version that functional-test fixtures apply to the test JVM as a system property. */
+class KoverVersionArgumentProvider(@get:Input val koverVersion: Provider<String>) : CommandLineArgumentProvider {
+  override fun asArguments(): Iterable<String> = listOf("-Dkovergate.test.koverVersion=${koverVersion.get()}")
+}
+
+/** Registers a functional-test task whose fixtures apply the Kover version supplied by [koverVersion]. */
+fun registerFunctionalTest(name: String, koverVersion: Provider<String>): TaskProvider<Test> =
+  tasks.register<Test>(name) {
+    description = "Runs the functional tests against Kover ${koverVersion.get()}"
+    group = "verification"
     testClassesDirs = functionalTestSourceSet.output.classesDirs
     classpath = functionalTestSourceSet.runtimeClasspath
     useJUnitPlatform()
+    jvmArgumentProviders.add(KoverVersionArgumentProvider(koverVersion))
   }
+
+val functionalTest =
+  registerFunctionalTest(
+    "functionalTest",
+    providers.gradleProperty("koverGateTestKoverVersion").orElse(libs.versions.kover.asProvider()),
+  )
+
+/**
+ * The Kover versions that `functionalTestKoverMatrix` tests: the supported floor and ceiling. To also test a version in
+ * between, add one entry here (a catalog version carrying the same `# @pin` and `# @keep` comment lines as
+ * `kover-floor`, or a literal such as `provider { "0.9.10" }`).
+ */
+val koverMatrixVersions = listOf(libs.versions.kover.floor, libs.versions.kover.asProvider())
+
+val koverMatrixTasks = koverMatrixVersions.map { version ->
+  registerFunctionalTest("functionalTestKover${version.get().replace('.', '_')}", version)
+}
+
+tasks.register("functionalTestKoverMatrix") {
+  description = "Runs the functional tests against every supported Kover version"
+  group = "verification"
+  dependsOn(koverMatrixTasks)
+}
 
 tasks.check { dependsOn("checkSortDependencies") }
 

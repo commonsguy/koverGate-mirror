@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `-PkoverGateIgnoreSpaceChange=true`, as `-PkoverGateBase` does for `--base`.
 - **Scoped reports now carry a `scope` block**, `{ "type": "branch", "ignoreSpaceChange": false }`, recording the
   settings the report was filtered with. It is absent from `gap-report.json`.
+- **Kover 0.9.9 through 0.9.11 is supported.** The functional tests run against both ends of that range
+  (`./gradlew functionalTestKoverMatrix`); versions in between are expected to work but are not tested.
+
+### Changed
+
+- Bumped Kover dependency from 0.9.9 to 0.9.11.
 
 ### Fixed
 

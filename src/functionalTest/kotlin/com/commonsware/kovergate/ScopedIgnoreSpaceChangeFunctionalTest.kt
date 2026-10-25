@@ -51,7 +51,7 @@ class ScopedIgnoreSpaceChangeFunctionalTest {
         """
         plugins {
             kotlin("jvm") version "2.0.21"
-            id("org.jetbrains.kotlinx.kover") version "0.9.8"
+            id("org.jetbrains.kotlinx.kover") version "$TEST_KOVER_VERSION"
             id("com.commonsware.kovergate")
         }
         repositories { mavenCentral() }

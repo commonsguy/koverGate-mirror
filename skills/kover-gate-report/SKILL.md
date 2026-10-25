@@ -87,7 +87,7 @@ instrumented-test exec using a `JacocoReport` task:
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("org.jetbrains.kotlinx.kover") version "0.9.11"
     id("com.commonsware.kovergate") version "0.6.0"
     jacoco
 }

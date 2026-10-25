@@ -8,7 +8,7 @@ When the `koverGateReport` task runs, it reads Kover's XML coverage report, chec
 
 - Gradle 8+
 - Kotlin DSL (`build.gradle.kts`)
-- [Kover Gradle plugin](https://github.com/Kotlin/kotlinx-kover) applied to the same module (optional when using `xmlReportFile` — see [Android: Merging Unit + Instrumented Coverage](#android-merging-unit--instrumented-coverage))
+- [Kover Gradle plugin](https://github.com/Kotlin/kotlinx-kover) applied to the same module (optional when using `xmlReportFile` — see [Android: Merging Unit + Instrumented Coverage](#android-merging-unit--instrumented-coverage)). Kover 0.9.9 through 0.9.11 is supported: both ends of that range are tested, and the versions in between are expected to work
 
 ## Adding the Plugin
 
@@ -16,7 +16,7 @@ The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in
 
 ```kotlin
 plugins {
-    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("org.jetbrains.kotlinx.kover") version "0.9.11"
     id("com.commonsware.kovergate") version "0.7.0"
 }
 ```
@@ -112,7 +112,7 @@ Kover instruments only JVM-based test tasks. Instrumented tests (`androidTest/`)
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("org.jetbrains.kotlinx.kover") version "0.9.11"
     id("com.commonsware.kovergate") version "0.7.0"
 }
 
@@ -129,7 +129,7 @@ Apply Kover with `useJacoco()` so it emits JaCoCo-compatible exec data, then mer
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("org.jetbrains.kotlinx.kover") version "0.9.11"
     id("com.commonsware.kovergate") version "0.7.0"
     jacoco
 }
@@ -237,7 +237,7 @@ If you do not need pretty-printed aggregate JSON, you can omit `koverGate {}` at
 **Each submodule `build.gradle.kts`:**
 ```kotlin
 plugins {
-    id("org.jetbrains.kotlinx.kover") version "0.9.9"
+    id("org.jetbrains.kotlinx.kover") version "0.9.11"
     id("com.commonsware.kovergate") version "0.7.0"
 }
 ```

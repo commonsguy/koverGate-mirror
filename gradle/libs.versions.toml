@@ -5,7 +5,10 @@ dokka = "2.2.0"
 junit = "5.14.4"
 junit-platform = "1.14.4"
 kotlinx-serialization = "1.11.0"
-kover = "0.9.9"
+kover = "0.9.11"
+# @pin
+# @keep lowest Kover version KoverGate supports; tested by functionalTestKoverMatrix
+kover-floor = "0.9.9"
 kovergate = "0.7.0"
 ktfmt-gradle = "0.27.0"
 sort-dependencies = "0.21.0"

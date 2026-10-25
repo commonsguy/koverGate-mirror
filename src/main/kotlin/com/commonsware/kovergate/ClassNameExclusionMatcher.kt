@@ -21,7 +21,8 @@ private val REGEX_METACHARACTERS = "<([{\\^-=$!|]})+.>".toSet()
 
 /**
  * Converts a Kover-style wildcard [pattern] into an equivalent regex fragment, mirroring
- * `kotlinx.kover.features.jvm.impl.String.wildcardsToRegex()` (`kover-features-jvm:0.9.8`):
+ * `kotlinx.kover.features.jvm.impl.String.wildcardsToRegex()` (unchanged from `kover-features-jvm:0.9.8` through
+ * `0.9.11`):
  *
  * - `*` becomes `.*` (any characters, including dots)
  * - `?` becomes `.` (exactly one arbitrary character)

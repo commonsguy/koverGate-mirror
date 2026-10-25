@@ -87,7 +87,7 @@ class AndroidFunctionalTest {
         plugins {
             id("com.android.library") version "8.13.2"
             id("org.jetbrains.kotlin.android") version "2.2.21"
-            id("org.jetbrains.kotlinx.kover") version "0.9.9"
+            id("org.jetbrains.kotlinx.kover") version "$TEST_KOVER_VERSION"
             id("com.commonsware.kovergate")
         }
         android {
