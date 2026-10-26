@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-26
+
 ### Added
 
 - **`koverGateScopedReport --ignore-space-change`.** Leaves out lines whose only change on the branch is the amount
@@ -251,7 +253,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Build cache support via `@CacheableTask`; the task is UP-TO-DATE when inputs have not changed
 - `skills/kover-gate-report.md` skill file for teaching AI coding agents to use the plugin
 
-[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.7.0...HEAD
+[Unreleased]: https://codeberg.org/commonsguy/koverGate/compare/0.8.0...HEAD
+[0.8.0]: https://codeberg.org/commonsguy/koverGate/compare/0.7.0...0.8.0
 [0.7.0]: https://codeberg.org/commonsguy/koverGate/compare/0.6.0...0.7.0
 [0.6.0]: https://codeberg.org/commonsguy/koverGate/compare/0.5.0...0.6.0
 [0.5.0]: https://codeberg.org/commonsguy/koverGate/compare/0.4.0...0.5.0
