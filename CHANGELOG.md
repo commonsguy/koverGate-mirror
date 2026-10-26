@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   settings the report was filtered with. It is absent from `gap-report.json`.
 - **Kover 0.9.9 through 0.9.11 is supported.** The functional tests run against both ends of that range
   (`./gradlew functionalTestKoverMatrix`); versions in between are expected to work but are not tested.
+- **KoverGate is now also published to Maven Central**, including the plugin marker, so builds that only allow Maven
+  Central can apply it with `mavenCentral()` in `pluginManagement.repositories`.
 
 ### Changed
 

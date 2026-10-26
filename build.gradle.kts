@@ -1,3 +1,4 @@
+import com.vanniktech.maven.publish.GradlePublishPlugin
 import org.gradle.plugin.compatibility.compatibility
 import org.jetbrains.dokka.gradle.tasks.DokkaGeneratePublicationTask
 import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
@@ -12,6 +13,7 @@ plugins {
   alias(libs.plugins.ktfmt.gradle)
   alias(libs.plugins.plugin.publish)
   alias(libs.plugins.sort.dependencies)
+  alias(libs.plugins.vanniktech.maven.publish)
   alias(libs.plugins.version.catalog.update)
 }
 
@@ -158,29 +160,41 @@ gradlePlugin {
   testSourceSets(functionalTestSourceSet)
 }
 
-publishing {
-  publications.withType<MavenPublication> {
-    pom {
-      name.set("KoverGate Gradle Plugin")
-      description.set("A Gradle plugin that gates builds on Kover coverage thresholds and generates gap reports.")
+mavenPublishing {
+  publishToMavenCentral()
+
+  signAllPublications()
+
+  coordinates(group.toString(), "kovergate", version.toString())
+
+  configure(GradlePublishPlugin())
+
+  pom {
+    name.set("KoverGate Gradle Plugin")
+    description.set("A Gradle plugin that gates builds on Kover coverage thresholds and generates gap reports.")
+    inceptionYear.set("2026")
+    url.set("https://codeberg.org/commonsguy/koverGate")
+
+    licenses {
+      license {
+        name.set("The Apache Software License, Version 2.0")
+        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+      }
+    }
+
+    developers {
+      developer {
+        id.set("commonsguy")
+        name.set("Mark Murphy")
+        email.set("mmurphy@commonsware.com")
+        url.set("https://commonsware.com")
+      }
+    }
+
+    scm {
       url.set("https://codeberg.org/commonsguy/koverGate")
-
-      licenses {
-        license {
-          name.set("The Apache Software License, Version 2.0")
-          url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-        }
-      }
-
-      developers {
-        developer {
-          id.set("commonsguy")
-          name.set("Mark Murphy")
-          email.set("mmurphy@commonsware.com")
-        }
-      }
-
-      scm { url.set("https://codeberg.org/commonsguy/koverGate") }
+      connection.set("scm:git:https://codeberg.org/commonsguy/koverGate.git")
+      developerConnection.set("scm:git:ssh://codeberg.org/commonsguy/koverGate.git")
     }
   }
 }

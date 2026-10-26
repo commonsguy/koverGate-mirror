@@ -12,7 +12,7 @@ When the `koverGateReport` task runs, it reads Kover's XML coverage report, chec
 
 ## Adding the Plugin
 
-The plugin is published to the Gradle Plugin Portal. Apply it alongside Kover in your module's `build.gradle.kts`:
+The plugin is published to the Gradle Plugin Portal and Maven Central. Apply it alongside Kover in your module's `build.gradle.kts`:
 
 ```kotlin
 plugins {
@@ -21,7 +21,7 @@ plugins {
 }
 ```
 
-No additional repository declarations are needed if you already have `gradlePluginPortal()` in your `settings.gradle.kts` plugin management block:
+Either repository resolves the plugin, including its plugin marker. No additional repository declarations are needed if you already have `gradlePluginPortal()` in your `settings.gradle.kts` plugin management block. If your build only allows Maven Central, `mavenCentral()` there is enough:
 
 ```kotlin
 pluginManagement {

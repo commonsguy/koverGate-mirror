@@ -12,6 +12,7 @@ kover-floor = "0.9.9"
 kovergate = "0.7.0"
 ktfmt-gradle = "0.27.0"
 sort-dependencies = "0.21.0"
+vanniktech-maven-publish = "0.37.0"
 version-catalog-update = "1.1.1"
 
 [libraries]
@@ -29,4 +30,5 @@ kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }
 ktfmt-gradle = { id = "com.ncorti.ktfmt.gradle", version.ref = "ktfmt-gradle" }
 plugin-publish = { id = "com.gradle.plugin-publish", version = "2.1.1" }
 sort-dependencies = { id = "com.squareup.sort-dependencies", version.ref = "sort-dependencies" }
+vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "vanniktech-maven-publish" }
 version-catalog-update = { id = "nl.littlerobots.version-catalog-update", version.ref = "version-catalog-update" }
