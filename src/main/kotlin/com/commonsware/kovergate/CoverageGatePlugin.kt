@@ -21,6 +21,7 @@ import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.file.RegularFile
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.build.event.BuildEventsListenerRegistry
@@ -30,45 +31,111 @@ import org.gradle.testing.jacoco.plugins.JacocoTaskExtension
 public class CoverageGatePlugin @Inject constructor(private val listenerRegistry: BuildEventsListenerRegistry) :
   Plugin<Project> {
   /**
-   * Applies the plugin. If the project has subprojects, registers a [KoverGateAggregateReportTask] to merge all
-   * submodule gap reports. Otherwise registers a [KoverGateReportTask] that checks Kover coverage for this module.
+   * Applies the plugin, taking one of three roles (see [ProjectRole]). A project that is not a root with subprojects is
+   * a leaf: it registers a [KoverGateReportTask] that checks Kover coverage for the module. A root with subprojects is
+   * either an aggregate, which only registers a [KoverGateAggregateReportTask] to merge the submodule gap reports, or a
+   * hybrid, which is a leaf for its own classes and also registers the aggregates as `koverGateAggregateReport` and
+   * `koverGateAggregateScopedReport`. The `koverGateRootMode` Gradle property chooses between them; by default a root
+   * is a hybrid when Kover and a Java, Kotlin or Android plugin were applied before this plugin.
    */
   override fun apply(project: Project) {
     registerFreshnessService(project, listenerRegistry)
 
-    if (project.parent == null && project.subprojects.isNotEmpty()) {
-      val extension = project.extensions.create("koverGate", RootCoverageGateExtension::class.java)
-      applyAsAggregateRoot(project, extension)
-    } else {
-      val extension = project.extensions.create("koverGate", CoverageGateExtension::class.java)
-      applyAsLeaf(project, extension)
+    val isRootWithSubprojects = project.parent == null && project.subprojects.isNotEmpty()
+    val mode =
+      if (isRootWithSubprojects) parseRootMode(project.providers.gradleProperty(ROOT_MODE_PROPERTY).orNull)
+      else RootMode.AUTO
+    val role =
+      resolveProjectRole(
+        isRootWithSubprojects = isRootWithSubprojects,
+        mode = mode,
+        hasKover = hasKover(project),
+        hasCodePlugin = hasCodePlugin(project),
+      )
+
+    when (role) {
+      ProjectRole.LEAF ->
+        applyAsLeaf(project, project.extensions.create("koverGate", CoverageGateExtension::class.java))
+      ProjectRole.AGGREGATE -> {
+        val extension = project.extensions.create("koverGate", RootCoverageGateExtension::class.java)
+
+        applyAsAggregateRoot(project, extension.prettyPrintJson, AggregateNames.AGGREGATE_ROOT, includeSelf = false)
+
+        if (mode == RootMode.AUTO) registerMisorderGuard(project)
+      }
+      ProjectRole.HYBRID -> {
+        val extension = project.extensions.create("koverGate", CoverageGateExtension::class.java)
+
+        applyAsLeaf(project, extension)
+        applyAsAggregateRoot(project, extension.prettyPrintJson, AggregateNames.HYBRID_ROOT, includeSelf = true)
+      }
     }
   }
 
-  private fun applyAsAggregateRoot(project: Project, extension: RootCoverageGateExtension) {
+  /**
+   * The task names and output paths for a root project's two aggregate reports.
+   *
+   * @property fullTaskName name of the full aggregate task
+   * @property fullReportPath path of the full aggregate's JSON, relative to the build directory
+   * @property scopedTaskName name of the scoped aggregate task
+   * @property scopedReportPath path of the scoped aggregate's JSON, relative to the build directory
+   */
+  private class AggregateNames(
+    val fullTaskName: String,
+    val fullReportPath: String,
+    val scopedTaskName: String,
+    val scopedReportPath: String,
+  ) {
+    companion object {
+      /** An aggregate-only root, which owns the leaf task names. */
+      val AGGREGATE_ROOT =
+        AggregateNames(
+          "koverGateReport",
+          "reports/kover/gap-report.json",
+          "koverGateScopedReport",
+          "reports/kover/scoped-gap-report.json",
+        )
+
+      /** A hybrid root, whose leaf tasks keep the leaf names. */
+      val HYBRID_ROOT =
+        AggregateNames(
+          "koverGateAggregateReport",
+          "reports/kover/aggregate-gap-report.json",
+          "koverGateAggregateScopedReport",
+          "reports/kover/aggregate-scoped-gap-report.json",
+        )
+    }
+  }
+
+  private fun applyAsAggregateRoot(
+    project: Project,
+    prettyPrint: Property<Boolean>,
+    names: AggregateNames,
+    includeSelf: Boolean,
+  ) {
+    // Subprojects are always leaves, so their lookups use the leaf names. A hybrid root's own leaf tasks are included
+    // the same way, which makes its entry in the aggregate module ":".
+    val sources = project.provider {
+      if (includeSelf) listOf(project) + project.subprojects else project.subprojects.toList()
+    }
+
     val taskProvider =
-      project.tasks.register("koverGateReport", KoverGateAggregateReportTask::class.java) {
+      project.tasks.register(names.fullTaskName, KoverGateAggregateReportTask::class.java) {
         group = "verification"
         description = "Aggregates Kover coverage gap reports from all submodules"
         projectPath.set(project.path)
-        prettyPrintJson.set(extension.prettyPrintJson)
-        jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/gap-report.json"))
+        prettyPrintJson.set(prettyPrint)
+        jsonReportFile.set(project.layout.buildDirectory.file(names.fullReportPath))
       }
 
-    // Collect submodule tasks using a lazy approach
     taskProvider.configure {
-      // Use project.provider to lazily evaluate the tasks
-      val subprojectTasks = project.provider {
-        project.subprojects.mapNotNull { sub -> sub.tasks.findByName("koverGateReport") }
-      }
-
-      // Depend on all koverGateReport tasks found in subprojects
-      dependsOn(subprojectTasks)
+      // Depend on all koverGateReport tasks found, lazily evaluated
+      dependsOn(project.provider { sources.get().mapNotNull { it.tasks.findByName("koverGateReport") } })
 
       // Add the output files from those tasks
       inputJsonFiles.from(
         project.provider {
-          project.subprojects.mapNotNull { sub ->
+          sources.get().mapNotNull { sub ->
             (sub.tasks.findByName("koverGateGenerateReport") as? KoverGateReportTask)?.jsonReportFile?.asFile?.orNull
           }
         }
@@ -76,23 +143,19 @@ public class CoverageGatePlugin @Inject constructor(private val listenerRegistry
     }
 
     val scopedAggregate =
-      project.tasks.register("koverGateScopedReport", KoverGateAggregateReportTask::class.java) {
+      project.tasks.register(names.scopedTaskName, KoverGateAggregateReportTask::class.java) {
         group = "verification"
         description = "Aggregates scoped (changed-lines) coverage gap reports from all submodules"
         projectPath.set(project.path)
-        prettyPrintJson.set(extension.prettyPrintJson)
-        jsonReportFile.set(project.layout.buildDirectory.file("reports/kover/scoped-gap-report.json"))
+        prettyPrintJson.set(prettyPrint)
+        jsonReportFile.set(project.layout.buildDirectory.file(names.scopedReportPath))
       }
 
     scopedAggregate.configure {
-      val subprojectTasks = project.provider {
-        project.subprojects.mapNotNull { it.tasks.findByName("koverGateScopedReport") }
-      }
-
-      dependsOn(subprojectTasks)
+      dependsOn(project.provider { sources.get().mapNotNull { it.tasks.findByName("koverGateScopedReport") } })
       inputJsonFiles.from(
         project.provider<List<java.io.File>> {
-          project.subprojects.mapNotNull { sub ->
+          sources.get().mapNotNull { sub ->
             (sub.tasks.findByName("koverGateScopedReport") as? KoverGateScopedReportTask)
               ?.scopedReportFile
               ?.asFile

@@ -71,6 +71,20 @@ generates an aggregate report that merges all submodule reports.
 
 4. **Fix gaps module by module** using the same process as single-module usage above.
 
+### Hybrid roots (the root is also the library)
+
+When the root applies Kover and a code plugin (`java`, `kotlin("jvm")`, KMP or an Android plugin) before
+`com.commonsware.kovergate`, it is a hybrid: its `koverGateReport` is a leaf gate for the root's own classes, and
+`build/reports/kover/gap-report.json` is a single-module `GapReport`. Run the aggregate with:
+
+```bash
+./gradlew koverGateAggregateReport
+```
+
+and read `build/reports/kover/aggregate-gap-report.json`. The `modules` array includes the root as `":"`. Subprojects
+need not apply koverGate. If the build fails saying the plugins were applied after koverGate, reorder `plugins {}`, or
+set `-PkoverGateRootMode=hybrid` (or `aggregate` to keep the aggregate only).
+
 ## Merged Unit + Instrumented Coverage (Android)
 
 When a module's `koverGate {}` block sets `xmlReportFile` pointing to a `JacocoReport` merge task,
@@ -247,6 +261,9 @@ Running at the root runs every submodule's `koverGateScopedReport` task (each di
 ```
 build/reports/kover/scoped-gap-report.json
 ```
+For a hybrid root, run `koverGateAggregateScopedReport` instead and read `aggregate-scoped-gap-report.json`; the root's
+own `scoped-gap-report.json` is then a single-module report.
+
 The aggregate is an `AggregateGapReport` with a `modules` array — one `GapReport` per submodule — and a top-level `passed` that is `true` only when every module has no in-scope gaps.
 
 Use `-PkoverGateBase=<ref>` (not `--base`) for multi-module runs — `--base` is a per-task option and does not propagate to dependency tasks. The same applies to `--ignore-space-change`: use `-PkoverGateIgnoreSpaceChange=true` at the root.
@@ -440,6 +457,23 @@ Two refinements to staleness reporting:
 
 No action needed on upgrade for the freshness signals; both are diagnostic-only. If you had threshold properties in a
 root `koverGate {}` block, remove them.
+
+### Hybrid Roots and `koverGateRootMode` (Next Release)
+
+A root project with subprojects that is also the library now gets a leaf gate for its own classes.
+
+- **Detection:** a root that applies Kover and one of `java`, `org.jetbrains.kotlin.multiplatform`,
+  `com.android.library` or `com.android.application` before `com.commonsware.kovergate` is a hybrid. Under the old
+  behavior it was aggregate-only.
+- **Changed:** for such a root, `koverGateReport` now gates the root's own classes, `build/reports/kover/gap-report.json`
+  is a `GapReport` rather than an `AggregateGapReport`, and `koverGate {}` uses the full extension (thresholds apply).
+  The aggregate moves to `koverGateAggregateReport` (`aggregate-gap-report.json`) and
+  `koverGateAggregateScopedReport` (`aggregate-scoped-gap-report.json`).
+- **Escape hatch:** `-PkoverGateRootMode=aggregate` (or in `gradle.properties`) restores the old behavior. `hybrid`
+  forces the new one when detection is wrong, and `auto` is the default.
+- **Plugin order:** if Kover and a code plugin come after koverGate under `auto`, the build fails with a message to
+  reorder them or set the property.
+- **Parsers:** anything that reads the root's `gap-report.json` as an aggregate must read `aggregate-gap-report.json`.
 
 ## Ratcheting Thresholds Up (`koverGateBump`)
 

@@ -144,6 +144,23 @@ class CoverageGatePluginTest {
   }
 
   @Test
+  fun `hybrid root registers leaf tasks plus renamed aggregates`() {
+    val root = ProjectBuilder.builder().withName("root").build()
+
+    ProjectBuilder.builder().withParent(root).withName("child").build()
+    root.pluginManager.apply("java")
+    root.pluginManager.apply("org.jetbrains.kotlinx.kover")
+    root.pluginManager.apply("com.commonsware.kovergate")
+
+    assertNotNull(root.extensions.findByType(CoverageGateExtension::class.java))
+    assertNull(root.extensions.findByType(RootCoverageGateExtension::class.java))
+    assertTrue(root.tasks.findByName("koverGateGenerateReport") is KoverGateReportTask)
+    assertTrue(root.tasks.findByName("koverGateReport") is KoverGateCheckTask)
+    assertTrue(root.tasks.findByName("koverGateAggregateReport") is KoverGateAggregateReportTask)
+    assertTrue(root.tasks.findByName("koverGateAggregateScopedReport") is KoverGateAggregateReportTask)
+  }
+
+  @Test
   fun `root prettyPrintJson propagates to aggregate task`() {
     val root = ProjectBuilder.builder().withName("root").build()
 

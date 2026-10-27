@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Hybrid roots.** A root project that has subprojects and is also the library now gets the full leaf gate for its own
+  classes, plus the aggregate. It is detected automatically when the root applies Kover and a code plugin (`java`,
+  `kotlin("jvm")`, `org.jetbrains.kotlin.multiplatform`, `com.android.library` or `com.android.application`) before
+  koverGate, and the `koverGate {}` block accepts thresholds and `xmlReportTask`. The aggregates are
+  `koverGateAggregateReport` and `koverGateAggregateScopedReport`, writing `aggregate-gap-report.json` and
+  `aggregate-scoped-gap-report.json`, and they include the root as module `":"`. Subprojects need not apply koverGate.
+  See [issue #1](https://codeberg.org/commonsguy/koverGate/issues/1).
+- **`koverGateRootMode` Gradle property** (`auto`, `aggregate` or `hybrid`) overrides the detection. If Kover and a code
+  plugin are applied after koverGate under `auto`, the build now fails with guidance, rather than leaving the root's
+  code ungated.
+
+### Changed
+
+- A root with subprojects that applies Kover and a code plugin before koverGate was an aggregate-only root, and is now
+  a hybrid: its `koverGateReport` gates its own classes, its `gap-report.json` is a leaf report, and the aggregate
+  moves to `koverGateAggregateReport`. Set `koverGateRootMode=aggregate` to keep the old behavior.
+
 ## [0.8.0] - 2026-10-26
 
 ### Added

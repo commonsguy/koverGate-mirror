@@ -167,6 +167,19 @@ class AndroidFunctionalTest {
   }
 
   @Test
+  fun `root library with an app subproject is gated as a hybrid`() {
+    writeAndroidProject("koverXmlReportDebug")
+    File(projectDir, "settings.gradle.kts").appendText("\ninclude(\":app\")\n")
+    File(projectDir, "app").mkdirs()
+    File(projectDir, "app/build.gradle.kts").writeText("")
+
+    val result = runner("koverGateReport").build()
+
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverGateReport")?.outcome)
+    assertEquals(TaskOutcome.SUCCESS, result.task(":koverXmlReportDebug")?.outcome)
+  }
+
+  @Test
   fun `misspelled Android variant task fails the gate listing the available tasks`() {
     writeAndroidProject("koverXmlReportDebg")
 

@@ -230,8 +230,8 @@ plugins {
 }
 ```
 
-The root `koverGate {}` block only exposes `prettyPrintJson` — threshold properties such as `minLineCoverage` are not
-available at the root and produce a compile-time error if attempted. Coverage thresholds are enforced per leaf module.
+For an aggregate-only root, the `koverGate {}` block only exposes `prettyPrintJson` — threshold properties such as `minLineCoverage` are not
+available at the root and produce a compile-time error if attempted. Coverage thresholds are enforced per leaf module (but see [Roots That Are Also the Library](#roots-that-are-also-the-library)).
 If you do not need pretty-printed aggregate JSON, you can omit `koverGate {}` at the root entirely.
 
 **Each submodule `build.gradle.kts`:**
@@ -354,9 +354,36 @@ Each metric also carries `headroom`: the covered units separating it from `thres
 
 > **Note:** Every leaf-module `gap-report.json` also carries a `source` provenance block (after `files`) recording which XML the numbers came from and whether it is stale. It is omitted from the example above for brevity — see [Report Provenance & Freshness](#report-provenance--freshness). The aggregate report carries the same block inside each entry of its `modules` array.
 
+### Roots That Are Also the Library
+
+Some projects keep the library at the root and add subprojects for a sample app, a CLI or benchmarks, such as
+`include(":app")`. For these, the root needs its own coverage gate, not just the aggregate. koverGate calls such a root
+a *hybrid*: it gets the full set of leaf tasks (`koverGateGenerateReport`, `koverGateReport`, `koverGateScopedReport`,
+`koverGateBump`, `koverGateDelta` and `koverGateDoctor`) for its own classes, so `koverGate {}` accepts thresholds,
+`xmlReportTask` and the rest. The aggregates are registered under different names:
+
+| Aggregate | Task | Output |
+|---|---|---|
+| full | `koverGateAggregateReport` | `build/reports/kover/aggregate-gap-report.json` |
+| scoped | `koverGateAggregateScopedReport` | `build/reports/kover/aggregate-scoped-gap-report.json` |
+
+The aggregate includes the root as module `":"`. `./gradlew koverGateReport`, with no project path, still gates the
+root and every subproject that applies koverGate. The subprojects do not need to apply koverGate: one that doesn't just
+adds nothing to the aggregate, at any nesting depth.
+
+A root is treated as a hybrid automatically when it applies both the Kover plugin and a code plugin (`java`,
+`kotlin("jvm")`, `java-library`, `org.jetbrains.kotlin.multiplatform`, `com.android.library` or
+`com.android.application`) **before** `com.commonsware.kovergate`. List them in that order in `plugins {}`. A root with
+Kover but no code plugin (the way Kover merges coverage from subprojects) stays an aggregate-only root. If the plugins
+are applied in the wrong order, the build fails with a message saying so, instead of leaving the root's code ungated.
+
+To override the detection, set the `koverGateRootMode` Gradle property to `auto` (the default), `aggregate` or `hybrid`,
+in `gradle.properties` or as `-PkoverGateRootMode=hybrid`.
+
 ### Aggregate JSON Structure
 
-When the root project plugin is applied, the aggregate report at `build/reports/kover/gap-report.json` wraps each submodule's `GapReport` in a `modules` array:
+When the root project plugin is applied, the aggregate report at `build/reports/kover/gap-report.json` (or
+`aggregate-gap-report.json` for a hybrid root) wraps each submodule's `GapReport` in a `modules` array:
 
 ```json
 {
