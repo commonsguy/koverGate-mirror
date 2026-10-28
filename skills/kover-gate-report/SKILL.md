@@ -45,8 +45,9 @@ After writing or modifying tests in a module, check coverage gaps and close them
 
 ## Multi-Module Usage
 
-When `com.commonsware.kovergate` is applied to the root project, running `koverGateReport` at root
-generates an aggregate report that merges all submodule reports.
+When `com.commonsware.kovergate` is applied to an aggregate-only root project (one with no code of its own), running
+`koverGateReport` at root generates an aggregate report that merges all submodule reports. If the root is also the
+library, see **Hybrid roots** below.
 
 1. **Run the root coverage gate:**
    ```bash
@@ -82,7 +83,8 @@ When the root applies Kover and a code plugin (`java`, `kotlin("jvm")`, KMP or a
 ```
 
 and read `build/reports/kover/aggregate-gap-report.json`. The `modules` array includes the root as `":"`. Subprojects
-need not apply koverGate. If the build fails saying the plugins were applied after koverGate, reorder `plugins {}`, or
+need not apply koverGate. On any root, `./gradlew koverGateReport` (no leading `:`) still runs every subproject's gate,
+because Gradle runs a task name in every project that has it; on a hybrid root, that includes the root's own leaf gate. If the build fails saying the plugins were applied after koverGate, reorder `plugins {}`, or
 set `-PkoverGateRootMode=hybrid` (or `aggregate` to keep the aggregate only).
 
 ## Merged Unit + Instrumented Coverage (Android)
@@ -102,7 +104,7 @@ plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlinx.kover") version "0.9.11"
-    id("com.commonsware.kovergate") version "0.8.0"
+    id("com.commonsware.kovergate") version "0.8.1"
     jacoco
 }
 
@@ -155,7 +157,7 @@ instrumented-test exec:
 plugins {
     id("com.android.library") version "8.11.2"
     id("org.jetbrains.kotlin.android")
-    id("com.commonsware.kovergate") version "0.8.0"
+    id("com.commonsware.kovergate") version "0.8.1"
     jacoco
 }
 
@@ -298,8 +300,10 @@ Only `uncoveredLines`, `missedBranchLines`, and `partiallyCoveredLines` entries 
 
 - Adjust thresholds in your module's `build.gradle.kts` via the `koverGate {}` block if 100% is not the right target for a specific metric.
 - Disable metrics that don't apply with `disabledMetrics.set(setOf(CoverageMetric.BRANCH))`.
-- The JSON report is always written (even on pass) at `build/reports/kover/gap-report.json` for each leaf module.
-- The aggregate report at root is only written when all submodule tasks succeed.
+- The JSON report is always written (even on pass) at `build/reports/kover/gap-report.json` for each leaf module and
+  for a hybrid root.
+- The aggregate report at root (`gap-report.json` on an aggregate-only root, `aggregate-gap-report.json` on a hybrid
+  root) is only written when all submodule tasks succeed.
 - If generated code, test fixtures shipped in `main`, or other classes you don't intend to gate show up
   as uncovered in the report, don't write tests for them — exclude them instead with `koverGate { excludes { classes(...); packages(...) } }`. This filters those classes out before coverage is computed, so
   they never appear in the gap report or affect the pass/fail verdict. See **Excluding Classes from
@@ -319,7 +323,10 @@ If a gate result looks wrong — for example, it reports lines uncovered that yo
 package you excluded still appears — suspect a **stale** Kover XML before writing new tests.
 
 1. **Check the `source` block** in `gap-report.json`. If `"stale": true`, the XML the report was computed from
-   predates your build configuration.
+   predates your build configuration. If `"rewrittenBeforeRead": true`, another task overwrote the XML after its
+   producer finished but before the gate read it, so the gate parsed a foreign report — do not trust the verdict.
+   Find and fix the task writing to the same path (set `failOnContendedReport.set(true)` in `koverGate {}` to make
+   this fail the build). See **Report-contention guard** in the README.
 
 2. **Run the doctor** for a full snapshot of what the gate will read:
    ```bash
@@ -444,21 +451,33 @@ Use it as a first step when a verdict looks wrong. See **Diagnosing a Wrong or S
 
 To upgrade: bump the plugin version to `0.4.0` in every module and the root project (if applicable). The only required change is on the consumer side, if anything you maintain parses `missedBranchLines` from the JSON.
 
-### Producer-Reuse Freshness Warning (Unreleased)
+### Root Extension and Producer-Reuse Freshness Warning (0.4.0 → 0.5.0)
+
+#### Breaking: minimal `koverGate {}` at aggregate roots
+
+Aggregate root projects now receive a minimal `RootCoverageGateExtension`. If you previously had threshold properties
+(`minLineCoverage`, etc.) in `koverGate {}` at the root, they were silently ignored; now they produce a compile error.
+Remove them from the root `koverGate {}` block — thresholds are enforced per leaf module only.
+
+#### New: freshness refinements
 
 Two refinements to staleness reporting:
 
 - The build-script staleness check is now explicitly labeled a **build-script timestamp heuristic** in both the `koverGateGenerateReport` warning and `koverGateDoctor` output. It compares the Kover XML's mtime to your build scripts' mtimes — a coarse proxy, not a guarantee.
 - A new **producer-reuse warning** fires when a module's `koverGateReport` gate runs (executes or fails) while Gradle served that module's `koverXmlReport*` task up-to-date or from cache. It is logged at build completion: `KoverGate freshness: the Kover XML for <module> was reused (UP_TO_DATE/FROM_CACHE) this build while its coverage gate ran; ... re-run with --rerun-tasks ...`. This catches the case where a verdict looks wrong because Gradle did not regenerate the Kover XML. Like the other freshness signals, it never fails the build.
 
-- Aggregate root projects now receive a minimal `RootCoverageGateExtension`. If you previously had threshold
-  properties (`minLineCoverage`, etc.) in `koverGate {}` at the root, they were silently ignored; now they produce a
-  compile error. Remove them from the root `koverGate {}` block — thresholds are enforced per leaf module only.
+To upgrade: bump the plugin version to `0.5.0` in every module and the root project (if applicable). No action is
+needed for the freshness signals; both are diagnostic-only. If you had threshold properties in a root `koverGate {}`
+block, remove them.
 
-No action needed on upgrade for the freshness signals; both are diagnostic-only. If you had threshold properties in a
-root `koverGate {}` block, remove them.
+### No Migration Needed (0.5.0 → 0.8.0)
 
-### Hybrid Roots and `koverGateRootMode` (Next Release)
+0.6.0, 0.7.0 and 0.8.0 only add features (documented in the sections above) and fixes; existing configuration keeps
+working. Bump the plugin version in every module and the root project (if applicable). One thing a parser may notice:
+since 0.7.0, the `files` array in `gap-report.json` is sorted by missed instructions (most first) instead of parse
+order.
+
+### Hybrid Roots and `koverGateRootMode` (0.8.0 → 0.8.1)
 
 A root project with subprojects that is also the library now gets a leaf gate for its own classes.
 
@@ -474,6 +493,10 @@ A root project with subprojects that is also the library now gets a leaf gate fo
 - **Plugin order:** if Kover and a code plugin come after koverGate under `auto`, the build fails with a message to
   reorder them or set the property.
 - **Parsers:** anything that reads the root's `gap-report.json` as an aggregate must read `aggregate-gap-report.json`.
+
+To upgrade: bump the plugin version to `0.8.1` in every module and the root project (if applicable). Aggregate-only
+roots and leaf modules need no other changes; for a hybrid root, point any aggregate tooling at the new task and file
+names, or set `koverGateRootMode=aggregate`.
 
 ## Ratcheting Thresholds Up (`koverGateBump`)
 
